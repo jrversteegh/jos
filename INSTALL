@@ -1,0 +1,7 @@
+Installation
+=======
+
+Copy the directories from the libraries directory to your arduino
+<sketchbook>/libraries directory. Optionally restart your arduino
+development environment. Select one of the examples from the arduino 
+file menu. You're good to go!
