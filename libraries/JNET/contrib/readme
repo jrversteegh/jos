@@ -1,0 +1,7 @@
+* Enc28j60 code taken from jcw's EtherCard library.
+* W5100 code taken from arduino 0021 reference software.
+
+The enc28j60 code was stripped down a little bit 
+further and made to use the standard SPI library.
+
+2010-10, Jaap Versteegh
