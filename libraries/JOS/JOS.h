@@ -20,11 +20,13 @@
 #define __JOS_H__
 
 //#define DEBUG
+#include "JDbg.h"
 
 #include <stdlib.h>
 #include <wiring.h>
 #undef round
 #include <math.h>
+
 
 __extension__ typedef int __guard __attribute__((mode (__DI__)));
 
@@ -39,21 +41,6 @@ void __cxa_pure_virtual(void);
 
 #ifdef __cplusplus
 }
-#endif
-
-#ifdef DEBUG
-#include <HardwareSerial.h>
-#define D_SETUP Serial.begin(9600)
-#define D_JOS(debug_str) Serial.println(debug_str) 
-#define J_ASSERT(condition, debug_str) \
-  if (!(condition)) { \
-    D_JOS(debug_str); \
-    panic(); \
-  }
-#else
-#define D_SETUP
-#define D_JOS(debug_str) 
-#define J_ASSERT(condition, debug_str) 
 #endif
 
 void panic();

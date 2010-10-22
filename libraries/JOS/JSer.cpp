@@ -120,18 +120,20 @@ void Serial::set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl,
     
     // calculate the percent difference between the baud-rate specified and
     // the real baud rate for both U2X and non-U2X mode (0-255 error percent)
-    uint8_t nonu2x_baud_error = abs((int)(255-((F_CPU/(16*(((F_CPU/8/baud-1)/2)+1))*255)/baud)));
-    uint8_t u2x_baud_error = abs((int)(255-((F_CPU/(8*(((F_CPU/4/baud-1)/2)+1))*255)/baud)));
+    uint8_t nonu2x_baud_error = abs((int)(255 - 
+        ((F_CPU / (16 * (((F_CPU / 8 / baud - 1) / 2) + 1)) * 255) / baud)));
+    uint8_t u2x_baud_error = abs((int)(255 - 
+        ((F_CPU / (8 * (((F_CPU / 4 / baud - 1) / 2) + 1)) * 255) / baud)));
     
     // prefer non-U2X mode because it handles clock skew better
     use_u2x = (nonu2x_baud_error > u2x_baud_error);
   }
   
   if (use_u2x) {
-    sbi(*_ucsra, u2x);
+    *_ucsra |= _BV(u2x);
     baud_setting = (F_CPU / 4 / baud - 1) / 2;
   } else {
-    cbi(*_ucsra, u2x);
+    *_ucsra &= ~_BV(u2x);
     baud_setting = (F_CPU / 8 / baud - 1) / 2;
   }
 

@@ -1,5 +1,5 @@
 /*
-  JLCD.h - 4 bit LCD library for JOS
+  JLCD.h - 4 bit LCD library (HD44780) for JOS
   Copyright (c) 2010 Jaap Versteegh.  All right reserved.
 
   This library is free software; you can redistribute it and/or

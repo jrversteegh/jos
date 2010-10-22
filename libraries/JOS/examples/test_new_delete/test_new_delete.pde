@@ -39,7 +39,6 @@ protected:
 
 void setup() 
 {
-  D_SETUP;
   D_JOS("Running object new/delete sequence");
   MyTask* task = new MyTask();
   JOS::tasks.add(task);

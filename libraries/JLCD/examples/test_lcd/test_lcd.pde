@@ -32,7 +32,7 @@ void value_to_buf(char* buf, unsigned long value, char pad = ' ')
 boolean MyTask::run() {
   char counter_str[11];
   if (counter == 0) {
-    if (lcd != 0) lcd->print("Casard Demo!");
+    if (lcd != 0) lcd->print("JOS Demo!");
   }
   value_to_buf(counter_str, counter);
   if (lcd != 0) lcd->print(1, counter_str, 4);
@@ -44,7 +44,6 @@ boolean MyTask::run() {
 
 void setup() 
 {
-  D_SETUP;
   D_JOS("Constructing LCD");
   JLCD::LCD* lcd = new JLCD::LCD;
   

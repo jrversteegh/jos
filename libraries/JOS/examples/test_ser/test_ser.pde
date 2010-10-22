@@ -31,7 +31,7 @@ void value_to_buf(char* buf, unsigned long value, char pad = ' ')
 
 boolean MyTask::run() {
   char counter_str[11];
-  if (serial != 0) serial->println("Casard Demo!");
+  if (serial != 0) serial->println("JOS Demo!");
   value_to_buf(counter_str, counter);
   if (serial != 0) serial->println(counter_str);
   ++counter;
@@ -43,7 +43,6 @@ JOS::Serial* serial;
 
 void setup() 
 {
-  D_SETUP;
   D_JOS("Constructing Serial");
   serial = new JOS::Serial(9600, 0);
   
