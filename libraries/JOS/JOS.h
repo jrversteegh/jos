@@ -52,6 +52,7 @@ namespace JOS {
 class TaskList;
 
 class Task {
+  boolean _running;
   boolean _high_priority;
   unsigned long _continue_at;
   Task* _next; 
@@ -65,7 +66,7 @@ protected:
   virtual void prev_completed(Task* prev_task) {};
   virtual boolean suspended();
 public:
-  Task(): _run_state(0), _high_priority(false),
+  Task(): _run_state(0), _running(false), _high_priority(false),
       _continue_at(0), _next(0), _task_list(0) {}
   // Don't destroy tasks explicitly, but rather have the "run"
   // method return true. This signals task completion upon 
@@ -87,7 +88,6 @@ class TaskList {
   int _size;
   int _list_size;
   Task** _list;
-  void run_nested();
   void run_task(int item);
 public:
   TaskList(): _size(0), _list_size(4) { 

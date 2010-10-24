@@ -1,5 +1,5 @@
 /*
-  JDbg.h - Main task library for JOS
+  JCls.cpp - Standard classes for JOS
   Copyright (c) 2010 Jaap Versteegh.  All right reserved.
 
   This library is free software; you can redistribute it and/or
@@ -16,38 +16,3 @@
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
-
-#ifndef __JDBG_H__
-#define __JDBG_H__
-
-#include "Print.h"
-
-#ifdef DEBUG
-#define D_JOS(debug_str) JOS::debug.println(debug_str) 
-#define J_ASSERT(condition, debug_str) \
-  if (!(condition)) { \
-    D_JOS(debug_str); \
-    panic(); \
-  }
-#else
-#define D_JOS(debug_str) 
-#define J_ASSERT(condition, debug_str) 
-#endif
-
-namespace JOS {
-
-#ifdef DEBUG
-
-class Debug: public Print {
-  void init_when_required();
-public:
-  virtual void write(uint8_t c);
-};
-
-extern Debug debug;
-
-#endif
-
-}  // namespace JOS
-
-#endif

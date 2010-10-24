@@ -56,21 +56,14 @@ void Debug::init_when_required()
   }
 }
 
-void Debug::print(const char* debug_str)
+void Debug::write(uint8_t c)
 {
   init_when_required();
-  int i = 0;
-  while (debug_str && debug_str[i]) {
-    while (!(_UCSRA & _BV(_UDRE))) 
-      ;  
-    _UDR = debug_str[i++];
-  }
+  while (!(_UCSRA & _BV(_UDRE))) 
+    ;  
+  _UDR = c;
 }
 
-void Debug::println(const char* debug_str)
-{
-  print(debug_str);
-  print("\n");
-}
+Debug debug;
 
 }  // namespace JOS
