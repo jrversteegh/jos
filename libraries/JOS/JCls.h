@@ -20,14 +20,13 @@
 #ifndef __JINTF_H__
 #define __JINTF_H__
 
-#include <wiring.h>
 #include <JOS.h>
 
 namespace JOS {
 
 struct OStream {
   virtual boolean write(const byte*, int len) = 0;
-  template<typename T> bool write(const T v) {
+  template <typename T> bool write(const T v) {
     return write((byte*)&v, sizeof(T));
   }
 };
@@ -43,6 +42,26 @@ struct IStream {
 };
 
 struct Stream: IStream, OStream {
+};
+
+extern const char* endl; 
+
+class TextStream: Stream {
+  int _width;
+  char* _buf;
+  int write(const char* str, char pad); 
+public:
+  char str_pad;
+  char num_pad;
+  uint8_t base;
+  uint8_t prec;
+  void setw(int width); 
+  int write(const char* str) {
+    return write(str, str_pad);
+  }
+  boolean write(int value);
+  TextStream(): _width(0), _buf(0), str_pad(' '), num_pad(' '),
+      base(10), prec(2) {}
 };
 
 struct Block {

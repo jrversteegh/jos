@@ -4,7 +4,7 @@
 
 struct MyTask: JOS::Task {
   unsigned long counter;
-  JLCD::LCD* lcd;
+  JOS::LCD* lcd;
   virtual boolean run();
   MyTask(): JOS::Task(), counter(0), lcd(0) {}
 };

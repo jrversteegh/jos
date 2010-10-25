@@ -31,7 +31,7 @@
 #include "contrib/ip_arp_udp_tcp.h"
 #endif
 
-namespace JNET {
+namespace JOS {
   
 const byte cmd_none = 0;
 const byte cmd_command = 1;
@@ -171,6 +171,6 @@ struct Ethernet {
   }
 };
 
-} // namespace JNET
+} // namespace JOS
 
 #endif

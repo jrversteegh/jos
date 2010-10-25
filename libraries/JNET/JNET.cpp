@@ -19,7 +19,7 @@
 
 #include "JNET.h"
 
-namespace JNET {
+namespace JOS {
 
 boolean Socket::init(uint8_t protocol, uint16_t port, uint8_t flag)
 {
@@ -165,5 +165,5 @@ void TCPSocket::disconnect()
   }
 }
 
-} // namespace JNET
+} // namespace JOS
 

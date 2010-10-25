@@ -22,7 +22,7 @@
 //#define DEBUG
 #include <JOS.h>
 
-namespace JLCD {
+namespace JOS {
   
 //command bytes for LCD
 const byte cmd_clear = 0x01;
@@ -134,6 +134,6 @@ public:
   void clear();
 };
 
-} // namespace JLCD
+} // namespace JOS
 
 #endif

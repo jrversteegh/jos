@@ -1,6 +1,6 @@
 #include <JCls.h>
 
-class MyStream: JOS::Stream {
+struct MyStream: JOS::Stream {
   virtual boolean write(const byte*, int len) {
     return true;
   }
@@ -10,6 +10,7 @@ class MyStream: JOS::Stream {
   virtual int read(byte*, int len) {
     return len;
   }
+  using JOS::OStream::write;
 };
 
 void setup()

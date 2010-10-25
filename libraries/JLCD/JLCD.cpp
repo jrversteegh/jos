@@ -19,7 +19,7 @@
 
 #include "JLCD.h"
 
-namespace JLCD {
+namespace JOS {
 
 void LCDTask::write_nibble(const byte value)
 {
@@ -195,4 +195,4 @@ void LCD::clear()
 }
 
 
-} // namespace JLCD
+} // namespace JOS
