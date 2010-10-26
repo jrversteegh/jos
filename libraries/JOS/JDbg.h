@@ -36,7 +36,6 @@
 
 namespace JOS {
 
-#ifdef DEBUG
 
 class Debug: public Print {
   void init_when_required();
@@ -45,8 +44,6 @@ public:
 };
 
 extern Debug debug;
-
-#endif
 
 }  // namespace JOS
 

@@ -59,24 +59,26 @@ void TextStream::setw(int width) {
   }
 }
 
+const char digits[] PROGMEM = "0123456789ABCDEF";
 
-static const PROGMEM char* digits = "0123456789ABCDEF";
-
-template<typename T> boolean TextStream::write(T value)
+template<typename T> boolean TextStream::write(const T& value)
 {
+  D_JOS("TextStream generic write");
   const int size = sizeof(T) << 3;
   char buf[size];
   char* p = _width > size ? _buf : buf;
   int i = _width > size ? _width : size;
-  uint8_t mod;
+  T val;
   boolean neg = value < 0;
   if (neg)
-    value -= value;
+    val = -value;
+  else
+    val = value;
   do {
-    mod = value % base;
-    value /= base;
-    p[--i] = pgm_read_byte(digits[mod]);
-  } while (value);
+    int mod = val % base;
+    val /= base;
+    p[--i] = pgm_read_byte(&digits[mod]);
+  } while (val);
   if (neg)
     p[--i] = '-';
   if (p == buf) {
@@ -88,16 +90,21 @@ template<typename T> boolean TextStream::write(T value)
       p[--i] = num_pad;
   }
 
-  return OStream::write((byte*)&p[i], size - i);
+  return write((byte*)&p[i], size - i);
 }
+
+template boolean TextStream::write<short>(const short&);
+template boolean TextStream::write<int>(const int&);
+template boolean TextStream::write<long>(const long&);
 
 int TextStream::write(const char* str, boolean complete)
 {
+  D_JOS("TextStream string write");
   int w = writeable();
   if (str && (w >= _width) && (!complete || (w >= strlen(str)))) {
     int i = 0;
     int k = _width;
-    while (str[i] && i < _width);
+    while (str[i] && i < _width)
       ++i;
     int j = i;
     while (k > 0) {
@@ -108,22 +115,18 @@ int TextStream::write(const char* str, boolean complete)
         _buf[--k] = str_pad;
       }
     }
-    while (k < _width) {
-      write(_buf[k]); 
-    }
-    if (complete) {
-    }
-    else {
-      while (str[i] && write(str[i]))
-        ++i;
-    }
+    while (k < _width) 
+      OStream::write(_buf[k++]); 
+    while (str[i] && OStream::write(str[i])) 
+      ++i;
     return i;
   }
   return 0;
 }
 
-boolean TextStream::write(double value, boolean scientific)
+boolean TextStream::write(const double& value, boolean scientific)
 {
+  D_JOS("TextStream double write");
   const int size = 22;
   char buf[size];
   if (value < LONG_MIN || value > LONG_MAX)
@@ -139,6 +142,7 @@ boolean TextStream::write(double value, boolean scientific)
 
 boolean TextStream::read(int* value)
 {
+  D_JOS("TextStream int read");
   boolean neg = false;
   uint8_t base = 10;
   char c;
@@ -146,7 +150,7 @@ boolean TextStream::read(int* value)
     if (!peek(&c))
       return false;
     if (c == '-') {
-      neg != neg;
+      neg = !neg;
     }
     else if (c == '+') {
       neg = false;
@@ -173,10 +177,10 @@ boolean TextStream::read(int* value)
           continue;
         else
           return true;
-        skip(1);
+        skip();
       }
       else if (neg) {
-        *value -= *value;
+        *value = -*value;
       }
     }
     else {
@@ -185,16 +189,19 @@ boolean TextStream::read(int* value)
       int add = (int)c - (int)'0';
       if (add > 16)
         add -= 7;
-      *value += add;
-      if (!peek(&c)) 
-        return true;
-      if (base > 10) {
-        if (!isxdigit(c))
-          return true;
-      }
-      else if (!isdigit(c))
+      if (neg)
+        *value -= add;
+      else
+        *value += add;
+    }
+    if (!peek(&c)) 
+      return true;
+    if (base > 10) {
+      if (!isxdigit(c))
         return true;
     }
+    else if (!isdigit(c))
+      return true;
   }
 }
 
@@ -259,6 +266,7 @@ void String::resize(int len)
 
 boolean String::write(const byte* data, int len)
 {
+  D_JOS("String data write");
   if (writeable() >= len) {
     contain(_len + len);
     if (space() >= len) {
@@ -292,6 +300,5 @@ byte& String::get_item(int index)
   else
     return Block::get_item(index);
 }
-
 
 } // namespace JOS
