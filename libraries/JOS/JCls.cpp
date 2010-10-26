@@ -63,7 +63,7 @@ const char digits[] PROGMEM = "0123456789ABCDEF";
 
 template<typename T> boolean TextStream::write(const T& value)
 {
-  D_JOS("TextStream generic write");
+  D_JOS("TextStream::write(const T&)");
   const int size = sizeof(T) << 3;
   char buf[size];
   char* p = _width > size ? _buf : buf;
@@ -99,7 +99,7 @@ template boolean TextStream::write<long>(const long&);
 
 int TextStream::write(const char* str, boolean complete)
 {
-  D_JOS("TextStream string write");
+  D_JOS("TextStream::write(const char*)");
   int w = writeable();
   if (str && (w >= _width) && (!complete || (w >= strlen(str)))) {
     int i = 0;
@@ -126,7 +126,7 @@ int TextStream::write(const char* str, boolean complete)
 
 boolean TextStream::write(const double& value, boolean scientific)
 {
-  D_JOS("TextStream double write");
+  D_JOS("TextStream::write(const double&)");
   const int size = 22;
   char buf[size];
   if (value < LONG_MIN || value > LONG_MAX)
@@ -140,30 +140,39 @@ boolean TextStream::write(const double& value, boolean scientific)
   return write(buf, true) != 0;
 }
 
-boolean TextStream::read(int* value)
+boolean TextStream::skip_to_num(boolean* negative)
 {
-  D_JOS("TextStream int read");
-  boolean neg = false;
-  uint8_t base = 10;
+  *negative = false;
   char c;
   do {
     if (!peek(&c))
       return false;
     if (c == '-') {
-      neg = !neg;
+      *negative = !*negative;
     }
     else if (c == '+') {
-      neg = false;
+      *negative = false;
     }
     else {
       if (isdigit(c))
         break;
-      if (!isspace(c))
+      if (!skipall && !isspace(c))
         return false;
     }
-  } while (skip(1));
+  } while (skip());
+  return true;
+}
+
+template <typename T> boolean TextStream::read(T* value)
+{
+  D_JOS("TextStream::read(T*)");
+  boolean neg;
+  uint8_t base = 10;
+  char c;
+  if (!skip_to_num(&neg))
+    return false;
   *value = 0;
-  while (read(&c)) {
+  while (IStream::read(&c)) {
     if (*value == 0) {
       *value = (int)c - (int)'0';
       if (*value == 0 && peek(&c)) {
@@ -205,44 +214,36 @@ boolean TextStream::read(int* value)
   }
 }
 
+template boolean TextStream::read<short>(short*);
+template boolean TextStream::read<int>(int*);
+template boolean TextStream::read<long>(long*);
+
 inline boolean isfloatchar(int c)
 {
-  return (isdigit(c) || c == '.' || c == 'E' || c == 'e'  || c == '+' || c == '-');
+  return (isdigit(c) || c == '.' || c == 'E' || c == 'e'  
+      || c == '+' || c == '-');
 }
 
 boolean TextStream::read(double* value)
 {
+  D_JOS("TextStream::read(double*)");
   const int size = 22;
-  char buf[size];
-  boolean neg = false;
+  char buf[size + 1];
+  boolean neg;
   int i = 0;
-  char c;
-  do {
-    if (!peek(&c))
-      return false;
-    if (c == '-') {
-      neg != neg;
-    }
-    else if (c == '+') {
-      neg = false;
-    }
-    else {
-      if (isdigit(c))
-        break;
-      if (!isspace(c))
-        return false;
-    }
-  } while (skip(1));
-  while (i < (size - 1) && read(&c)) {
+  if (!skip_to_num(&neg)) {
+    return false;
+  }
+  char c = 0;
+  while (i < size && IStream::read(&c)) {
     buf[i++] = c;
     if (!peek(&c) || !isfloatchar(c))
       break;
   }
   buf[i] = 0;
   *value = strtod(buf, NULL);
-  if (neg) {
-    *value -= *value;
-  }
+  if (neg) 
+    *value = -*value;
   return true;
 }
 
@@ -266,7 +267,7 @@ void String::resize(int len)
 
 boolean String::write(const byte* data, int len)
 {
-  D_JOS("String data write");
+  D_JOS("String::write(const byte*, int)");
   if (writeable() >= len) {
     contain(_len + len);
     if (space() >= len) {
@@ -283,16 +284,17 @@ boolean String::write(const byte* data, int len)
 
 int String::read(byte* data, int len)
 {
+  D_JOS("String::read(byte*, int)");
   int ret = 0;
-  while (ret < len && (ret + _ipos) < _len) {
-    data[ret++] = _buf[ret + _ipos];
+  while (ret < len && _ipos < _len) {
+    data[ret++] = _buf[_ipos++];
   }
-  _ipos += ret;
   return ret;
 }
 
 byte& String::get_item(int index)
 {
+  D_JOS("String::get_item(int)");
   if (index >= 0 && index < _len) {
     byte* item = (byte*)&_buf[index];
     return *item;

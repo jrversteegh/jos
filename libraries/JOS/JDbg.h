@@ -36,7 +36,6 @@
 
 namespace JOS {
 
-
 class Debug: public Print {
   void init_when_required();
 public:

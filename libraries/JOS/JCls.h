@@ -20,6 +20,7 @@
 #ifndef __JINTF_H__
 #define __JINTF_H__
 
+//#define DEBUG
 #include <JOS.h>
 
 namespace JOS {
@@ -33,8 +34,9 @@ public:
   virtual boolean peek(byte* b) const = 0;
   virtual int read(byte*, int len) = 0;
   template<typename T> boolean read(T* v) {
+    D_JOS("IStream generic read");
     if (available() >= sizeof(T)) {
-      return read((byte*)&v, sizeof(T));
+      return read((byte*)v, sizeof(T));
     }
   }
   int skip(int len = 1); 
@@ -81,24 +83,29 @@ extern const char* endl;
 class TextStream: public Stream {
   int _width;
   char* _buf;
+  boolean skip_to_num(boolean* negative);
 public:
   // Formatting
   char str_pad;
   char num_pad;
   uint8_t base;
   uint8_t prec;
+  boolean skipall;
+
   void setw(int width); 
 
   // OStream interface
   virtual boolean write(const byte*, int len) = 0;
+  template<typename T> boolean write(const T& value);
   int write(const char* str, boolean complete = false); 
   boolean write(const double& value, boolean scientific = false);
-  template<typename T> boolean write(const T& value);
   
   // IStream interface
   using IStream::read;
-  boolean read(int* value);
+  virtual int read(byte*, int len) = 0;
+  template<typename T> boolean read(T* value);
   boolean read(double* value);
+
   using IStream::peek;
   boolean peek(char* c) {
     return peek((byte*)c);
@@ -108,11 +115,11 @@ public:
     if (peek(&c)) 
       return c;
     else
-      return -1;
+      return 0;
   }
   // Life cycle
   TextStream(): Stream(), _width(0), _buf(NULL), str_pad(' '), num_pad(' '),
-      base(10), prec(2) {
+      skipall(false), base(10), prec(2) {
   }
   ~TextStream() {
     setw(0); // Free 'width' buffer
