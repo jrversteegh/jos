@@ -24,52 +24,162 @@
 
 namespace JOS {
 
-struct OStream {
-  virtual boolean write(const byte*, int len) = 0;
-  template <typename T> bool write(const T v) {
-    return write((byte*)&v, sizeof(T));
-  }
-};
 
-struct IStream {
-  virtual int in_avail() = 0;
+class IStream {
+protected:
+  unsigned _ipos;
+public:
+  virtual int available() const = 0;
+  virtual boolean peek(byte* b) const = 0;
   virtual int read(byte*, int len) = 0;
   template<typename T> boolean read(T* v) {
-    if (in_avail() >= sizeof(T)) {
+    if (available() >= sizeof(T)) {
       return read((byte*)&v, sizeof(T));
     }
   }
+  int skip(int len); 
+  void reset() {
+    _ipos = 0;
+  }
+  IStream(): _ipos(0) {
+  }
 };
 
-struct Stream: IStream, OStream {
+class OStream {
+protected:
+  unsigned _opos;
+public:
+  virtual int writeable() const = 0;
+  virtual boolean write(const byte*, int len) = 0;
+  template <typename T> bool write(const T& v) {
+    return write((byte*)&v, sizeof(T));
+  }
+  OStream& operator<< (IStream& ist) {
+    byte b;
+    while (writeable() > 0 && ist.read(&b))
+      write(b);
+  }
+  void reset() {
+    _opos = 0;
+  }
+  OStream(): _opos(0) {
+  }
+};
+
+struct Stream: public IStream, public OStream {
+  Stream(): IStream(), OStream() {
+  }
+  void reset() {
+    IStream::reset();
+    OStream::reset();
+  }
 };
 
 extern const char* endl; 
 
-class TextStream: Stream {
+class TextStream: public Stream {
   int _width;
   char* _buf;
-  int write(const char* str, char pad); 
 public:
   char str_pad;
   char num_pad;
   uint8_t base;
   uint8_t prec;
   void setw(int width); 
-  int write(const char* str) {
-    return write(str, str_pad);
+  template<typename T> boolean write(T value);
+  int write(const char* str, boolean complete = false); 
+  boolean write(double value, boolean scientific = false);
+  using IStream::read;
+  boolean read(int* value);
+  boolean read(double* value);
+  using IStream::peek;
+  boolean peek(char* c) {
+    return peek((byte*)c);
   }
-  boolean write(int value);
-  TextStream(): _width(0), _buf(0), str_pad(' '), num_pad(' '),
-      base(10), prec(2) {}
+  TextStream(): Stream(), _width(0), _buf(NULL), str_pad(' '), num_pad(' '),
+      base(10), prec(2) {
+  }
+  ~TextStream() {
+    setw(0); // Free 'width' buffer
+  }
 };
 
-struct Block {
-  virtual byte& operator[] (int) = 0;
+
+class Block {
+protected:
+  byte _undef; // Returned when index is out of range
+  virtual byte& get_item(int) {
+    _undef = 0;
+    return _undef;
+  }
+public:
+  byte& operator[] (int index) {
+    return get_item(index); 
+  }
 };
 
 struct Array {
   virtual Block& operator[] (int) = 0;
+};
+
+class String: public TextStream, public Block {
+  static const int maxlen = 1023;
+  int _capacity;
+  int _len;
+  char* _buf;
+  int space() {
+    return _capacity - _len - 1;
+  }
+  void resize(int len);
+  void contain(int len) {
+    if (len >= _capacity) 
+      resize(len);
+  }
+protected:
+  virtual byte& get_item(int index);
+public:
+  String(): TextStream(), Block(), _capacity(0), _len(0), _buf(NULL) {
+    resize(0xf);
+  }
+  ~String() {
+    if (_buf != NULL)
+      free(_buf);
+  }
+  int len() {
+    return _len;
+  }
+  const char* c_str() const {
+    return _buf;
+  }
+  virtual int available() const {
+    return _len - _ipos;
+  }
+  virtual int writeable() const {
+    return maxlen - _len;
+  }
+  virtual boolean peek(byte* b) const {
+    if (_ipos >= _len)
+      return false;
+    *b = _buf[_ipos];
+    return true;
+  }
+  using TextStream::write;
+  virtual boolean write(const byte* data, int len);
+  virtual int read(byte* data, int len);
+  boolean operator== (const String& str) {
+    return strcmp(_buf, str._buf) == 0;
+  }
+  String& operator= (const char* str) {
+    clear();
+    write(str);
+  }
+  String& operator= (const String& str) {
+    operator=(str.c_str());
+  }
+  void clear() {
+    reset();
+    resize(0);
+  }
 };
 
 } // namespace JOS
