@@ -46,9 +46,9 @@ static Tx_buffer tx_buffer3;
 
 #define TX_HANDLER(sign, reg, buf) SIGNAL(sign) \
 { \
-  int data = buf.get(); \
-  if (data >= 0) { \
-    reg = (byte)data; \
+  byte data; \
+  if (buf.get(&data)) { \
+    reg = data; \
   } \
 } 
 
@@ -76,8 +76,32 @@ TX_HANDLER(USART_UDRE_vect, UDR0, tx_buffer0);
 
 #endif
 
+void SerialBase::init(Rx_buffer* rx_buffer, Tx_buffer* tx_buffer, 
+    volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, 
+    volatile uint8_t* ucsra, volatile uint8_t* ucsrb, 
+    volatile uint8_t* udr, 
+    uint8_t udre,  
+    uint8_t rxen, uint8_t txen, 
+    uint8_t rxcie,  uint8_t udrie, 
+    uint8_t u2x,   
+    long baud) {
+  _rx_buffer = rx_buffer;
+  _tx_buffer = tx_buffer;
+  _ucsra = ucsra;
+  _ucsrb = ucsrb;
+  _udr = udr;
+  set_baud(ubrrh, ubrrl, u2x, baud);
+  // Setup mask values for Status A and B registers
+  _udre_mask = _BV(udre);
+  _udrie_mask = 0;//_BV(udrie);
+  _ucsrb_mask = _BV(rxen) | _BV(txen) | _BV(rxcie) | _udrie_mask;
+  // Start with empty buffers...
+  flush();
+  // ... and enable the UART
+  set_status(ucsrb, _ucsrb_mask);
+}
 
-Serial::Serial(long baud, int port)
+void SerialBase::init(long baud, int port)
 {
   switch(port) {
     case 0:
@@ -106,7 +130,7 @@ Serial::Serial(long baud, int port)
   }
 }
 
-void Serial::set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, 
+void SerialBase::set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, 
        uint8_t u2x, long baud)
 {
   uint16_t baud_setting;
@@ -142,57 +166,49 @@ void Serial::set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl,
   *ubrrh = baud_setting >> 8;
 }
 
-int Serial::available()
+int SerialBase::read_data(byte* data, int size)
 {
-  return _rx_buffer->len();
+  int i = 0;
+  byte b;
+  while (i < size && _rx_buffer->get(&b)) {
+    data[i++] = b;
+  }
+  return i;
 }
 
-int Serial::peek()
+boolean SerialBase::write_data(const byte* data, int len)
 {
-  return _rx_buffer->peek();
+  if (len > writeable_data())
+    return false;
+  int i = 0;
+  while (i < len) {
+    if (!_tx_buffer->put(data[i++])) {
+      // Write buffer is full?... shouldn't happen as we checked for the size
+      J_ASSERT(false, "Serial write buffer full");
+    }
+  }
+  return true;
 }
 
-int Serial::read()
-{
-  return _rx_buffer->get();
-}
-
-void Serial::flush()
+void SerialBase::flush()
 {
   _rx_buffer->flush();
   _tx_buffer->flush();
 }
 
-void Serial::write(uint8_t c)
+boolean SerialBase::run()
 {
-  if (!_tx_buffer->put(c)) {
-    if (!put_xtr(c)) {
-      // Write buffers are full... character will be discarded
-      D_JOS("Serial write buffer full");
-    }
-  }
-}
-
-boolean Serial::run()
-{
-  if (!_tx_buffer->full()) {
-    // Transfer byte from extra buffer to tx buffer (when there is one)
-    int c = get_xtr();
-    if (c >= 0) {
-      _tx_buffer->put((byte)c);
-    }
-  }
   // Kick start data transmission when required 
   if (!_tx_buffer->empty() && (*_ucsra & _udre_mask)) {
     // Disable the data register empty interrupt before checking
     *_ucsrb &= ~_udrie_mask;
-    int c = _tx_buffer->get();
+    byte b; 
     // Recheck buffer and data register status after interrupt has 
     // been disabled
-    if ((c >= 0) && (*_ucsra & _udre_mask)) {
-      *_udr = c;
+    if (_tx_buffer->get(&b) && (*_ucsra & _udre_mask)) {
+      *_udr = b;
     }
-    // Re-enabling the interrupt: buffer should now be sucked empty
+    // Re-enabling the interrupt: buffer should now get sucked empty
     // by ISR
     *_ucsrb |= _udrie_mask;
   }

@@ -23,13 +23,13 @@
 #define __JSER_H__
 
 #include "JOS.h"
-#include <Stream.h>
+#include "JCls.h"
 
 namespace JOS {
 
 // Buffer sizes can be 4,8,16,32,64,128 bytes 
 #define RX_BUFFER_SIZE 32
-#define TX_BUFFER_SIZE 64
+#define TX_BUFFER_SIZE 128
 
 // Check if the buffers size are valid
 #if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 128)
@@ -76,18 +76,18 @@ public:
     }
     return false;
   }
-  int peek() {
-    if (!empty()) {
-      return buffer[_tail];
-    }
-    return -1;
+  boolean peek(byte* b) {
+    if (empty()) 
+      return false;
+    *b = buffer[_tail];
+    return true;
   }
-  int get() {
-    int result = peek();
-    if (result >= 0) {
+  boolean get(byte* b) {
+    if (peek(b)) {
       _tail = (_tail + 1) & mask;
+      return true;
     }
-    return result;
+    return false;
   }
   uint8_t len() {
     int l = _head + bufsize - _tail;
@@ -108,38 +108,15 @@ struct Tx_buffer: public Buffer<TX_BUFFER_SIZE> {
   }
 };
 
-#define XTR_BUFFER_SIZE 128
-
-typedef Buffer<XTR_BUFFER_SIZE> Xtr_buffer;
-
-class Serial : public Stream, public Task {
+class SerialBase : public Task {
   Rx_buffer *_rx_buffer;
   Tx_buffer *_tx_buffer;
-  Xtr_buffer* xtr_buffer;
   volatile uint8_t *_ucsra; // UART status register A
   volatile uint8_t *_ucsrb; // UART status register B
   volatile uint8_t *_udr;   // UART data register
   uint8_t _udre_mask;       // Data register empty mask for status register A
   uint8_t _udrie_mask;      // DRE interrupt mask for status register B
   uint8_t _ucsrb_mask;      // Enable bits mask for status register B
-  // Put and get for dynamic extended transmit buffer
-  boolean put_xtr(byte b) {
-    if (xtr_buffer == 0) {
-      xtr_buffer = new Xtr_buffer;
-    }
-    return xtr_buffer->put(b);
-  }
-  int get_xtr() {
-    if (xtr_buffer != 0) {
-      int result = xtr_buffer->get();
-      if (xtr_buffer->empty()) {
-        delete xtr_buffer;
-        xtr_buffer = 0;
-      }
-      return result;
-    }
-    return -1;
-  }
   void set_status(volatile uint8_t* reg, uint8_t mask) {
     *reg |= mask;
   }
@@ -158,46 +135,65 @@ protected:
       uint8_t rxen, uint8_t txen, // RX/TX enable bits (Status B)
       uint8_t rxcie,  uint8_t udrie, // RX/DRE interrupt bits (Status B)
       uint8_t u2x,  // Baud rate sampling bit (Status A) 
-      long baud) {
-    _rx_buffer = rx_buffer;
-    _tx_buffer = tx_buffer;
-    _ucsra = ucsra;
-    _ucsrb = ucsrb;
-    _udr = udr;
-    set_baud(ubrrh, ubrrl, u2x, baud);
-    // Setup mask values for Status A and B registers
-    _udre_mask = _BV(udre);
-    _udrie_mask = 0;//_BV(udrie);
-    _ucsrb_mask = _BV(rxen) | _BV(txen) | _BV(rxcie) | _udrie_mask;
-    // Start with empty buffers...
-    flush();
-    // ... and enable the UART
-    set_status(ucsrb, _ucsrb_mask);
-  }
+      long baud); 
+  void init(long baud, int port);
 public:
-  Serial(long baud, int port=0);
-  ~Serial() {
-    // Clear optionally allocated extra buffer
-    if (xtr_buffer != 0) {
-      delete xtr_buffer;
-    }
+  SerialBase(long baud, int port=0): Task() {
+    init(baud, port);
+  }
+  ~SerialBase() {
     // Disable UART...
     clear_status(_ucsrb, _ucsrb_mask);
     // ... and clear buffers
     flush();
   }
-  // Implementation of stream interface
-  virtual int available();
-  virtual int peek();
-  virtual int read();
-  virtual void flush();
-  virtual void write(uint8_t);
-  int writeable() {
-    return _tx_buffer->size + xtr_buffer->size
-        - _tx_buffer->len() - xtr_buffer->len();
+
+  // Stream interface implementation
+  int available_data() const {
+    return _rx_buffer->len();
   }
-  using Print::write; // pull in write(str) and write(buf, size) from Print
+  boolean peek_data(byte* b) const {
+    return _rx_buffer->peek(b);
+  }
+  int read_data(byte* data, int size); 
+  boolean write_data(const byte* data, int size);
+  int writeable_data() const {
+    return _tx_buffer->size - _tx_buffer->len();
+  }
+
+  // Serial specific
+  void flush();
 };
+
+template <class ST>
+class Serial_template: public SerialBase, public ST {
+public:
+  Serial_template(long baud, int port = 0): SerialBase(baud, port), ST() {
+  }
+  // IStream interface
+  virtual int available() const {
+    return available_data();
+  }
+  virtual boolean peek(byte* b) const {
+    return peek_data(b);
+  }
+  virtual int read(byte* data, int size) {
+    return read_data(data, size);
+  }
+  using ST::read;
+
+  // OStream interface
+  virtual int writeable() const {
+    return writeable_data();
+  }
+  virtual boolean write(const byte* data, int size) {
+    return write_data(data, size);
+  }
+  using ST::write; 
+};
+
+typedef Serial_template<Stream> Serial;
+typedef Serial_template<Text_stream> Text_serial;
 
 } // Namespace JOS
 

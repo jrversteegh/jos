@@ -1,4 +1,5 @@
 #define DEBUG
+#include <JOS.h>
 #include <JCls.h>
 
 void setup()
@@ -15,7 +16,7 @@ void setup()
   J_ASSERT(str == "pi = ", "Failed string concat");
 
   double pi = 3.14159265359;
-  str.prec = 5;
+  str.format.precision = 5;
   str.write(pi);
   J_ASSERT(str == "pi = 3.14159", "Failed double concat");
   
@@ -24,11 +25,11 @@ void setup()
   J_ASSERT(str == "pi = 3.14159265", "Failed int concat");
   
   i = 857;
-  str.base = 16;
+  str.format.base = 16;
   str.write(i);
   J_ASSERT(str == "pi = 3.14159265359", "Failed hex concat");
 
-  str.setw(10);
+  str.format.width = 10;
   str += "e = 2.71";
   J_ASSERT(str == "pi = 3.14159265359  e = 2.71", "Failed spaced concat");
   

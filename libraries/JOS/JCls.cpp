@@ -17,6 +17,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
+//#define DEBUG
 #include "JCls.h"
 #include <avr/pgmspace.h>
 #include <limits.h>
@@ -25,7 +26,7 @@
 
 namespace JOS {
 
-int IStream::skip(int size) {
+int Input_stream::skip(int size) {
   const int buf_size = 16;
   byte dump[buf_size];
   int rd, ret = 0;
@@ -42,32 +43,15 @@ int IStream::skip(int size) {
 
 const char* endl = "\n";
 
-void TextStream::setw(int width) {
-  if (width != _width) {
-    _width = width;
-    if (_wbuf != NULL) {
-      free(_wbuf);
-    }
-    if (_width != 0) {
-      _wbuf = (char*)malloc(_width);
-      if (_wbuf == NULL)
-        _width = 0;
-    }
-    else {
-      _wbuf = NULL;
-    }
-  }
-}
-
 const char digits[] PROGMEM = "0123456789ABCDEF";
 
-template<typename T> boolean TextStream::write(const T& value)
+template<typename T> boolean Output_text::write(const Format& fmt, const T& value)
 {
-  D_JOS("TextStream::write(const T&)");
-  const int size = sizeof(T) << 3;
+  D_JOS("Output_text::write(const T&)");
+  const int size = sizeof(T) << 3 + 1;
   char buf[size];
-  char* p = _width > size ? _wbuf : buf;
-  int i = _width > size ? _width : size;
+  int i = size;
+  buf[--i] = 0;
   T val;
   boolean neg = value < 0;
   if (neg)
@@ -75,72 +59,68 @@ template<typename T> boolean TextStream::write(const T& value)
   else
     val = value;
   do {
-    int mod = val % base;
-    val /= base;
-    p[--i] = pgm_read_byte(&digits[mod]);
+    int mod = val % fmt.base;
+    val /= fmt.base;
+    buf[--i] = pgm_read_byte(&digits[mod]);
   } while (val);
   if (neg)
-    p[--i] = '-';
-  if (p == buf) {
-    while (i > (size - _width)) 
-      p[--i] = num_pad;
-  }
-  else {
-    while (i > 0) 
-      p[--i] = num_pad;
-  }
+    buf[--i] = '-';
 
-  return write((byte*)&p[i], size - i);
+  return write_string(&buf[i], true, fmt.num_pad, fmt.width) != 0;
 }
 
-template boolean TextStream::write<short>(const short&);
-template boolean TextStream::write<int>(const int&);
-template boolean TextStream::write<long>(const long&);
+// Template instantiations
+template boolean Output_text::write<short>(const Format&, const short&);
+template boolean Output_text::write<int>(const Format&, const int&);
+template boolean Output_text::write<long>(const Format&, const long&);
+template boolean Output_text::write<unsigned short>(const Format&, const unsigned short&);
+template boolean Output_text::write<unsigned int>(const Format&, const unsigned int&);
+template boolean Output_text::write<unsigned long>(const Format&, const unsigned long&);
 
-int TextStream::write(const char* str, boolean complete)
+int Output_text::write_string(const char* str, boolean complete, char pad, uint8_t width)
 {
-  D_JOS("TextStream::write(const char*)");
-  int w = writeable();
-  if (str && (w >= _width) && (!complete || (w >= strlen(str)))) {
+  D_JOS("Output_text::write(const char*)");
+  int wr = writeable();
+  if (str && (wr >= width)) {
     int i = 0;
-    int k = _width;
-    while (str[i] && i < _width)
+    while (str[i] && i < width)
       ++i;
-    int j = i;
-    while (k > 0) {
-      if (j > 0) {
-        _wbuf[--k] = str[--j];
-      }
-      else {
-        _wbuf[--k] = str_pad;
-      }
+    if (complete) {
+      int j = i;
+      while (str[j++])
+        if (j > wr)
+          return false;
     }
-    while (k < _width) 
-      OStream::write(_wbuf[k++]); 
-    while (str[i] && OStream::write(str[i])) 
+    while (width > i) {
+      Output_stream::write(pad); 
+      ++i;
+    }
+    i = 0;
+    while (str[i] && Output_stream::write(str[i])) 
       ++i;
     return i;
   }
   return 0;
 }
 
-boolean TextStream::write(const double& value, boolean scientific)
+boolean Output_text::write(const Format& fmt, const double& value)
 {
-  D_JOS("TextStream::write(const double&)");
-  const int size = 22;
+  D_JOS("Output_text::write(const double&)");
+  const int size = 24;
   char buf[size];
+  boolean scientific = fmt.scientific;
   if (value < LONG_MIN || value > LONG_MAX)
     scientific = true;
   if (scientific) {
-    dtostre(value, buf, prec, DTOSTR_UPPERCASE | DTOSTR_ALWAYS_SIGN);
+    dtostre(value, buf, fmt.precision, DTOSTR_UPPERCASE | DTOSTR_ALWAYS_SIGN);
   }
   else {
-    dtostrf(value, 0, prec, buf);
+    dtostrf(value, 0, fmt.precision, buf);
   }
-  return write(buf, true) != 0;
+  return write_string(buf, true, fmt.str_pad, fmt.width) != 0;
 }
 
-boolean TextStream::skip_to_num(boolean* negative)
+boolean Input_text::skip_to_num(boolean* negative)
 {
   *negative = false;
   char c;
@@ -163,16 +143,16 @@ boolean TextStream::skip_to_num(boolean* negative)
   return true;
 }
 
-template <typename T> boolean TextStream::read(T* value)
+template <typename T> boolean Input_text::read(T* value)
 {
-  D_JOS("TextStream::read(T*)");
+  D_JOS("Input_text::read(T*)");
   boolean neg;
   uint8_t base = 10;
   char c;
   if (!skip_to_num(&neg))
     return false;
   *value = 0;
-  while (IStream::read(&c)) {
+  while (Input_stream::read(&c)) {
     if (*value == 0) {
       *value = (int)c - (int)'0';
       if (*value == 0 && peek(&c)) {
@@ -214,9 +194,9 @@ template <typename T> boolean TextStream::read(T* value)
   }
 }
 
-template boolean TextStream::read<short>(short*);
-template boolean TextStream::read<int>(int*);
-template boolean TextStream::read<long>(long*);
+template boolean Input_text::read<short>(short*);
+template boolean Input_text::read<int>(int*);
+template boolean Input_text::read<long>(long*);
 
 inline boolean isfloatchar(int c)
 {
@@ -224,9 +204,9 @@ inline boolean isfloatchar(int c)
       || c == '+' || c == '-');
 }
 
-boolean TextStream::read(double* value)
+boolean Input_text::read(double* value)
 {
-  D_JOS("TextStream::read(double*)");
+  D_JOS("Input_text::read(double*)");
   const int size = 22;
   char buf[size + 1];
   boolean neg;
@@ -235,7 +215,7 @@ boolean TextStream::read(double* value)
     return false;
   }
   char c = 0;
-  while (i < size && IStream::read(&c)) {
+  while (i < size && Input_stream::read(&c)) {
     buf[i++] = c;
     if (!peek(&c) || !isfloatchar(c))
       break;
@@ -247,7 +227,7 @@ boolean TextStream::read(double* value)
   return true;
 }
 
-void MemBlock::resize(int new_size)
+void Memory_block::resize(int new_size)
 {
   if (new_size == _size)
     return;
@@ -271,13 +251,23 @@ void MemBlock::resize(int new_size)
   }
 }
 
-byte& Array::get_item(int item) {
+
+byte& Array::get_item(const int item) 
+{
   contain(item);
   if (item < _size)
     return _buf[item];
 
   _undef = 0;
   return _undef;
+}
+
+byte Array::get_item(const int item) const 
+{
+  if (item < _size)
+    return _buf[item];
+
+  return 0;
 }
 
 boolean String::write(const byte* data, int size)
@@ -308,16 +298,24 @@ int String::read(byte* data, int size)
   return ret;
 }
 
-byte& String::get_item(int index)
+byte& String::get_item(const int index)
 {
-  D_JOS("String::get_item(int)");
+  D_JOS("String::get_item(const int)");
   if (index >= 0 && index < len()) {
-    //byte* item = (byte*)&_buf[index];
-    //return *item;
     return _buf[index];
   }
   else
     return Block::get_item(index);
+}
+
+byte String::get_item(const int index) const
+{
+  D_JOS("String::get_item(const int) const");
+  if (index >= 0 && index < len()) {
+    return _buf[index];
+  }
+  else
+    return 0;
 }
 
 } // namespace JOS

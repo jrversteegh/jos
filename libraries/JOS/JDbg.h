@@ -20,9 +20,8 @@
 #ifndef __JDBG_H__
 #define __JDBG_H__
 
-#include "Print.h"
-
 #ifdef DEBUG
+#include "Print.h"
 #define D_JOS(debug_str) JOS::debug.println(debug_str) 
 #define J_ASSERT(condition, debug_str) \
   if (!(condition)) { \
@@ -36,6 +35,8 @@
 
 namespace JOS {
 
+#ifdef DEBUG
+
 class Debug: public Print {
   void init_when_required();
 public:
@@ -43,6 +44,8 @@ public:
 };
 
 extern Debug debug;
+
+#endif
 
 }  // namespace JOS
 

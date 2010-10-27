@@ -21,6 +21,7 @@
 
 //#define DEBUG
 #include <JOS.h>
+#include <JCls.h>
 
 namespace JOS {
   
@@ -55,13 +56,18 @@ protected:
   virtual boolean run();
 };
 
+// Total screen characters
 const int char_count = 32;
+// Characters per line
 const int line_chars = 16;
+// Memory gap between lines
+const int line_gap = 48;
 
 class Display: public LCDTask {
   static const byte run_state_clear = 100;
   static const byte run_state_home = 102;
   static const byte run_state_put_char = 104;
+  static const byte run_state_done = 120;
   byte _addr;
   int _char_index;
   char _actual[char_count];
@@ -77,6 +83,9 @@ class Display: public LCDTask {
   void home() {
     _run_state = run_state_home;
   }
+  void done() {
+    _run_state = run_state_done;
+  }
 protected:
   virtual boolean run();
 public:
@@ -89,47 +98,41 @@ public:
   friend class LCD;
 };
 
-class LCD {
+class LCD: public Block, public Output_text {
   Display* _display;
+protected:
+  // Block interface
+  byte& get_item(const int index) {
+    if (index >= 0 && index < char_count) 
+      return *((byte*)&_display->_data[index]);
+    else
+      return Block::get_item(index);
+  }
+  byte get_item(const int index) const {
+    if (index >= 0 && index < char_count) 
+      return _display->_data[index];
+    else
+      return 0;
+  }
 public:
   LCD();
-  void print(const char* str, const int offset);
-  void print(const int line, const char* str) {
-    print(str, line * line_chars);
+  ~LCD();
+  // Output stream interface
+  virtual int writeable() const {
+    return char_count - _opos;
   }
-  void print(const int line, const char* str, const int offset) {
-    print(str, line * line_chars  + offset);
+  virtual boolean write(const byte* data, int size);
+  using Output_text::write;
+  // Block interface
+  virtual int size() const {
+    return char_count;
   }
-  void print(const char* str) {
-    print(str, 0);
+  using Output_text::set_pos;
+  void set_pos(int line, unsigned new_pos) {
+    set_pos(line * line_chars + new_pos);
   }
-  char& operator[] (const int index) {
-    if (index > 0 && index < char_count) {
-      return _display->_data[index];
-    }
-    else {
-      return *_display->_data;
-    }
-  }
-  char operator[] (const int index) const {
-    if (index > 0 && index < char_count) {
-      return _display->_data[index];
-    }
-    else {
-      return *_display->_data;
-    }
-  }
-  char& operator() (const int index) {
-    return this->operator[](index);
-  }
-  char operator() (const int index) const {
-    return this->operator[](index);
-  }
-  char& operator() (const int line, const int index) {
-    return this->operator[](index + line * line_chars);
-  }
-  char operator() (const int line, const int index) const {
-    return this->operator[](index + line * line_chars);
+  void set_line(unsigned line) {
+    set_pos(line * line_chars);
   }
   void clear();
 };

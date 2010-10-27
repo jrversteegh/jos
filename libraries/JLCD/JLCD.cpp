@@ -104,9 +104,8 @@ boolean Init::run()
 void Display::put_char()
 {
   byte addr = _char_index;
-  if (addr > 0x0F) {
-    addr += 0x30;
-  }
+  byte line = addr / line_chars;
+  addr += line * line_gap;
   if (addr != _addr) {
     set_address(addr);
   }
@@ -136,6 +135,9 @@ boolean Display::run()
       ++_addr;
       _actual[_char_index] = _data[_char_index];
       return false;
+
+    case run_state_done:
+      return true;
 
     default:
       _run_state = run_state_default;
@@ -174,15 +176,9 @@ LCD::LCD()
   JOS::tasks.add(init);
 }
 
-void LCD::print(const char* str, const int offset)
+LCD::~LCD()
 {
-  int j = offset;
-  int i = 0;
-  while (str[i] != 0) {
-    if (j < char_count) {
-      _display->_data[j++] = str[i++];
-    }
-  }
+  _display->done();
 }
 
 void LCD::clear()
@@ -194,5 +190,14 @@ void LCD::clear()
   }
 }
 
+boolean LCD::write(const byte* data, int size) {
+  if (size > writeable())
+    return false;
+  int i = 0;
+  while (i < size) {
+    _display->_data[_opos++] = data[i++];
+  }
+  return true;
+}
 
 } // namespace JOS

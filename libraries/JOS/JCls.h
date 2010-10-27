@@ -20,13 +20,16 @@
 #ifndef __JINTF_H__
 #define __JINTF_H__
 
+#include <stdlib.h>
+#include <string.h>
+#include <wiring.h>
+
 //#define DEBUG
-#include <JOS.h>
+#include "JDbg.h"
 
 namespace JOS {
 
-
-class IStream {
+class Input_stream {
 protected:
   unsigned _ipos;
 public:
@@ -34,30 +37,30 @@ public:
   virtual boolean peek(byte* b) const = 0;
   virtual int read(byte*, int size) = 0;
   template<typename T> boolean read(T* v) {
-    D_JOS("IStream generic read");
+    D_JOS("Input_stream generic read");
     if (available() >= sizeof(T)) {
       return read((byte*)v, sizeof(T));
     }
   }
   int skip(int size = 1); 
-  void reset() {
+  void rewind() {
     _ipos = 0;
   }
-  IStream(): _ipos(0) {
+  Input_stream(): _ipos(0) {
   }
 };
 
-class OStream {
+class Output_stream {
 protected:
   unsigned _opos;
 public:
   virtual int writeable() const = 0;
   virtual boolean write(const byte*, int size) = 0;
   template <typename T> bool write(const T& v) {
-    D_JOS("Generic OStream write");
+    D_JOS("Generic Output_stream write");
     return write((byte*)&v, sizeof(T));
   }
-  OStream& operator<< (IStream& ist) {
+  Output_stream& operator<< (Input_stream& ist) {
     byte b;
     while (writeable() > 0 && ist.read(&b))
       write(b);
@@ -65,47 +68,76 @@ public:
   void reset() {
     _opos = 0;
   }
-  OStream(): _opos(0) {
+  void set_pos(unsigned new_pos) {
+    _opos = new_pos;
+  }
+  Output_stream(): _opos(0) {
   }
 };
 
-struct Stream: public IStream, public OStream {
-  Stream(): IStream(), OStream() {
-  }
-  void reset() {
-    IStream::reset();
-    OStream::reset();
+struct Stream: public Input_stream, public Output_stream {
+  Stream(): Input_stream(), Output_stream() {
   }
 };
 
 extern const char* endl; 
 
-class TextStream: public Stream {
-  int _width;
-  char* _wbuf;
+struct Format {
+  uint8_t width;
+  uint8_t base;
+  uint8_t precision;
+  char num_pad;
+  char str_pad;
+  boolean scientific;
+  Format(uint8_t w = 0, uint8_t b = 10, uint8_t p = 2,
+        char np = ' ', char sp = ' ', boolean sc = false): 
+      width(w), base(b), precision(p), 
+      num_pad(np), str_pad(sp), scientific(sc) {
+  }
+};
+
+class Output_text: public Output_stream {
+  int write_string(const char* str, boolean complete, char pad, uint8_t width);
+public:
+  // Life cycle
+  Output_text(): Output_stream(), format() {
+  }
+
+  // Formatting
+  Format format;
+  
+  // Output_stream extension
+  virtual boolean write(const byte*, int size) = 0;
+  template<typename T> boolean write(const Format& fmt, const T& value);
+  template<typename T> boolean write(const T& value) {
+    return write(format, value);
+  }
+  int write(const char* str, boolean complete = false) {
+    return write_string(str, complete, format.str_pad, format.width);
+  }
+  boolean write(const Format& fmt, const double& value);
+  boolean write(const double& value) {
+    return write(format, value);
+  }
+  boolean writeln() {
+    return write(endl, true);
+  }
+};
+
+class Input_text: public Input_stream {
   boolean skip_to_num(boolean* negative);
 public:
-  // Formatting
-  char str_pad;
-  char num_pad;
-  uint8_t base;
-  uint8_t prec;
+  Input_text(): Input_stream(), skipall(false) {
+  }
+  // Parsing
   boolean skipall;
 
-  void setw(int width); 
-
-  // OStream interface
-  virtual boolean write(const byte*, int size) = 0;
-  template<typename T> boolean write(const T& value);
-  int write(const char* str, boolean complete = false); 
-  boolean write(const double& value, boolean scientific = false);
-  
-  // IStream interface
-  using IStream::read;
+  // Input_stream extension
+  using Input_stream::read;
   virtual int read(byte*, int size) = 0;
   template<typename T> boolean read(T* value);
   boolean read(double* value);
-  using IStream::peek;
+  using Input_stream::peek;
   boolean peek(char* c) {
     return peek((byte*)c);
   }
@@ -116,90 +148,101 @@ public:
     else
       return 0;
   }
-  // Life cycle
-  TextStream(): Stream(), _width(0), _wbuf(NULL), str_pad(' '), num_pad(' '),
-      skipall(false), base(10), prec(2) {
-  }
-  ~TextStream() {
-    setw(0); // Free 'width' buffer
-  }
 };
 
+class Text_stream: public Output_text, public Input_text {
+public:
+  Text_stream(): Output_text(), Input_text() {
+  }
+};
 
 class Block {
 protected:
   byte _undef; // Returned when index is out of range
-  virtual byte& get_item(int index) {
+  virtual byte& get_item(const int index) {
     _undef = 0;
     return _undef;
   }
+  virtual byte get_item(const int index) const {
+    return 0;
+  }
 public:
   virtual int size() const = 0;
-  byte& operator[] (int index) {
+  byte& operator[] (const int index) {
     return get_item(index); 
   }
+  byte operator[] (const int index) const {
+    return get_item(index); 
+  }
+  Block(): _undef(0) {}
 };
 
 struct Matrix {
   virtual Block& operator[] (int) = 0;
 };
 
-class MemBlock: public Block {
+class Memory_block: public Block {
 protected:
   static const int max_size = 0x400;
   static const int block_bits = 4;
   int _capacity;
   int _size;
   byte* _buf;
+public:
+  Memory_block(): Block(), _capacity(0), _size(0), _buf(NULL) {
+  }
+  ~Memory_block() {
+    if (_buf != NULL)
+      free(_buf);
+  }
+  virtual int size() const {
+    return _size;
+  }
+  byte* data() {
+    return _buf;
+  }
   void resize(int new_size);
   void contain(int item) {
     if (item >= _size) {
       resize(item + 1);
     }
   }
-public:
-  virtual int size() const {
-    return _size;
-  }
-  MemBlock(): Block(), _capacity(0), _size(0), _buf(NULL) {
-  }
-  ~MemBlock() {
-    if (_buf != NULL)
-      free(_buf);
-  }
 };
 
-class Array: public MemBlock {
+
+class Array: public Memory_block {
 protected:
-  virtual byte& get_item(int item); 
+  virtual byte& get_item(const int item); 
+  virtual byte get_item(const int item) const;
 };
 
-class String: public TextStream, public MemBlock {
+class String: public Text_stream, public Memory_block {
   int space() {
     return _capacity - _size;
   }
   void resize(int newsize) {
-    MemBlock::resize(newsize);
+    Memory_block::resize(newsize);
     _buf[_size] = 0;
   }
 protected:
   // Block interface
-  virtual byte& get_item(int index);
+  virtual byte& get_item(const int index);
+  virtual byte get_item(const int index) const;
 public:
-  String(): TextStream(), MemBlock() {
+  String(): Text_stream(), Memory_block() {
     resize(0xF);
   }
   
   // Ostream interface
   virtual boolean write(const byte* data, int size);
-  using TextStream::write;
+  using Text_stream::write;
   virtual int writeable() const {
     return max_size - _size;
   }
 
-  // IStream interface
+  // Input_stream interface
   virtual int read(byte* data, int size);
-  using TextStream::read;
+  using Text_stream::read;
   virtual int available() const {
     return len() - _ipos;
   }
@@ -209,7 +252,7 @@ public:
     *b = _buf[_ipos];
     return true;
   }
-  using TextStream::peek;
+  using Text_stream::peek;
 
   // String functions
   int len() const {
@@ -222,7 +265,7 @@ public:
     return (char*)_buf;
   }
   void clear() {
-    reset();
+    rewind();
     set_len(0);
   }
 
