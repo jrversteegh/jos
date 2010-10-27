@@ -32,14 +32,14 @@ protected:
 public:
   virtual int available() const = 0;
   virtual boolean peek(byte* b) const = 0;
-  virtual int read(byte*, int len) = 0;
+  virtual int read(byte*, int size) = 0;
   template<typename T> boolean read(T* v) {
     D_JOS("IStream generic read");
     if (available() >= sizeof(T)) {
       return read((byte*)v, sizeof(T));
     }
   }
-  int skip(int len = 1); 
+  int skip(int size = 1); 
   void reset() {
     _ipos = 0;
   }
@@ -52,7 +52,7 @@ protected:
   unsigned _opos;
 public:
   virtual int writeable() const = 0;
-  virtual boolean write(const byte*, int len) = 0;
+  virtual boolean write(const byte*, int size) = 0;
   template <typename T> bool write(const T& v) {
     D_JOS("Generic OStream write");
     return write((byte*)&v, sizeof(T));
@@ -82,7 +82,7 @@ extern const char* endl;
 
 class TextStream: public Stream {
   int _width;
-  char* _buf;
+  char* _wbuf;
   boolean skip_to_num(boolean* negative);
 public:
   // Formatting
@@ -95,17 +95,16 @@ public:
   void setw(int width); 
 
   // OStream interface
-  virtual boolean write(const byte*, int len) = 0;
+  virtual boolean write(const byte*, int size) = 0;
   template<typename T> boolean write(const T& value);
   int write(const char* str, boolean complete = false); 
   boolean write(const double& value, boolean scientific = false);
   
   // IStream interface
   using IStream::read;
-  virtual int read(byte*, int len) = 0;
+  virtual int read(byte*, int size) = 0;
   template<typename T> boolean read(T* value);
   boolean read(double* value);
-
   using IStream::peek;
   boolean peek(char* c) {
     return peek((byte*)c);
@@ -118,7 +117,7 @@ public:
       return 0;
   }
   // Life cycle
-  TextStream(): Stream(), _width(0), _buf(NULL), str_pad(' '), num_pad(' '),
+  TextStream(): Stream(), _width(0), _wbuf(NULL), str_pad(' '), num_pad(' '),
       skipall(false), base(10), prec(2) {
   }
   ~TextStream() {
@@ -130,81 +129,109 @@ public:
 class Block {
 protected:
   byte _undef; // Returned when index is out of range
-  virtual byte& get_item(int) {
+  virtual byte& get_item(int index) {
     _undef = 0;
     return _undef;
   }
 public:
+  virtual int size() const = 0;
   byte& operator[] (int index) {
     return get_item(index); 
   }
 };
 
-struct Array {
+struct Matrix {
   virtual Block& operator[] (int) = 0;
 };
 
-class String: public TextStream, public Block {
-  static const int maxlen = 1023;
-  int _capacity;
-  int _len;
-  char* _buf;
-  int space() {
-    return _capacity - _len - 1;
-  }
-  void resize(int len);
-  void contain(int len) {
-    if (len >= _capacity) 
-      resize(len);
-  }
+class MemBlock: public Block {
 protected:
-  virtual byte& get_item(int index);
-public:
-  String(): TextStream(), Block(), _capacity(0), _len(0), _buf(NULL) {
-    resize(0xf);
+  static const int max_size = 0x400;
+  static const int block_bits = 4;
+  int _capacity;
+  int _size;
+  byte* _buf;
+  void resize(int new_size);
+  void contain(int item) {
+    if (item >= _size) {
+      resize(item + 1);
+    }
   }
-  ~String() {
+public:
+  virtual int size() const {
+    return _size;
+  }
+  MemBlock(): Block(), _capacity(0), _size(0), _buf(NULL) {
+  }
+  ~MemBlock() {
     if (_buf != NULL)
       free(_buf);
   }
+};
+
+class Array: public MemBlock {
+protected:
+  virtual byte& get_item(int item); 
+};
+
+class String: public TextStream, public MemBlock {
+  int space() {
+    return _capacity - _size;
+  }
+  void resize(int newsize) {
+    MemBlock::resize(newsize);
+    _buf[_size] = 0;
+  }
+protected:
+  // Block interface
+  virtual byte& get_item(int index);
+public:
+  String(): TextStream(), MemBlock() {
+    resize(0xF);
+  }
+  
   // Ostream interface
-  virtual boolean write(const byte* data, int len);
+  virtual boolean write(const byte* data, int size);
   using TextStream::write;
   virtual int writeable() const {
-    return maxlen - _len;
+    return max_size - _size;
   }
 
   // IStream interface
-  virtual int read(byte* data, int len);
+  virtual int read(byte* data, int size);
   using TextStream::read;
   virtual int available() const {
-    return _len - _ipos;
+    return len() - _ipos;
   }
   virtual boolean peek(byte* b) const {
-    if (_ipos >= _len)
+    if (_ipos >= len())
       return false;
     *b = _buf[_ipos];
     return true;
   }
   using TextStream::peek;
 
-  int len() {
-    return _len;
+  // String functions
+  int len() const {
+    return _size - 1;
+  }
+  void set_len(int new_len) {
+    resize(new_len + 1);
   }
   const char* c_str() const {
-    return _buf;
+    return (char*)_buf;
   }
   void clear() {
     reset();
-    resize(0);
+    set_len(0);
   }
 
   // Operators
   boolean operator== (const String& str) {
-    return strcmp(_buf, str._buf) == 0;
+    return strcmp((char*)_buf, str.c_str()) == 0;
   }
   boolean operator== (const char* str) {
-    return strcmp(_buf, str) == 0;
+    return strcmp((char*)_buf, str) == 0;
   }
   String& operator= (const char* str) {
     clear();

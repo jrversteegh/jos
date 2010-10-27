@@ -25,18 +25,18 @@
 
 namespace JOS {
 
-int IStream::skip(int len) {
-  const int size = 16;
-  byte dump[size];
+int IStream::skip(int size) {
+  const int buf_size = 16;
+  byte dump[buf_size];
   int rd, ret = 0;
-  while (len > size) {
-    rd = read(dump, size);
+  while (size > buf_size) {
+    rd = read(dump, buf_size);
     ret += rd;
-    if (rd != size)
+    if (rd != buf_size)
       return ret;
-    len -= size;
+    size -= buf_size;
   }
-  ret += read(dump, len);
+  ret += read(dump, size);
   return ret;
 }
 
@@ -45,16 +45,16 @@ const char* endl = "\n";
 void TextStream::setw(int width) {
   if (width != _width) {
     _width = width;
-    if (_buf != NULL) {
-      free(_buf);
+    if (_wbuf != NULL) {
+      free(_wbuf);
     }
     if (_width != 0) {
-      _buf = (char*)malloc(_width);
-      if (_buf == NULL)
+      _wbuf = (char*)malloc(_width);
+      if (_wbuf == NULL)
         _width = 0;
     }
     else {
-      _buf = NULL;
+      _wbuf = NULL;
     }
   }
 }
@@ -66,7 +66,7 @@ template<typename T> boolean TextStream::write(const T& value)
   D_JOS("TextStream::write(const T&)");
   const int size = sizeof(T) << 3;
   char buf[size];
-  char* p = _width > size ? _buf : buf;
+  char* p = _width > size ? _wbuf : buf;
   int i = _width > size ? _width : size;
   T val;
   boolean neg = value < 0;
@@ -109,14 +109,14 @@ int TextStream::write(const char* str, boolean complete)
     int j = i;
     while (k > 0) {
       if (j > 0) {
-        _buf[--k] = str[--j];
+        _wbuf[--k] = str[--j];
       }
       else {
-        _buf[--k] = str_pad;
+        _wbuf[--k] = str_pad;
       }
     }
     while (k < _width) 
-      OStream::write(_buf[k++]); 
+      OStream::write(_wbuf[k++]); 
     while (str[i] && OStream::write(str[i])) 
       ++i;
     return i;
@@ -247,46 +247,62 @@ boolean TextStream::read(double* value)
   return true;
 }
 
-void String::resize(int len)
+void MemBlock::resize(int new_size)
 {
-  if (len >= _capacity) {
-    len = (((len + 1) >> 4) + 1) << 4;
-    char* newbuf = (char*)realloc(_buf, len);
-    if (newbuf != NULL) {
-      _buf = newbuf;
-      while (_capacity < len)
+  if (new_size == _size)
+    return;
+  if (new_size > max_size)
+    new_size = max_size;
+  int new_cap = ((new_size >> block_bits) + 1) << block_bits;
+  if (new_cap != _capacity) {
+    byte* new_buf = (byte*)realloc(_buf, new_cap);
+    if (new_buf != NULL) {
+      _buf = new_buf;
+      _size = new_size;
+      while (_capacity < new_cap)
         _buf[_capacity++] = 0;
     }
   }
   else {
-    _len = len;
-    while (len < _capacity && _buf[len])
-      _buf[len++] = 0;
+    while (_size > new_size) {
+      _buf[--_size] = 0;
+    }
+    _size = new_size;
   }
 }
 
-boolean String::write(const byte* data, int len)
+byte& Array::get_item(int item) {
+  contain(item);
+  if (item < _size)
+    return _buf[item];
+
+  _undef = 0;
+  return _undef;
+}
+
+boolean String::write(const byte* data, int size)
 {
   D_JOS("String::write(const byte*, int)");
-  if (writeable() >= len) {
-    contain(_len + len);
-    if (space() >= len) {
+  if (writeable() >= size) {
+    int length = len();
+    contain(length + size);
+    if (space() >= size) {
       int i = 0;
-      while (i < len) {
-        _buf[_len++] = data[i++];
+      while (i < size) {
+        _buf[length++] = data[i++];
       }
-      _buf[_len] = 0;
+      _buf[length] = 0;
       return true;
     }
   }
   return false;
 }
 
-int String::read(byte* data, int len)
+int String::read(byte* data, int size)
 {
   D_JOS("String::read(byte*, int)");
   int ret = 0;
-  while (ret < len && _ipos < _len) {
+  while (ret < size && _ipos < len()) {
     data[ret++] = _buf[_ipos++];
   }
   return ret;
@@ -295,9 +311,10 @@ int String::read(byte* data, int len)
 byte& String::get_item(int index)
 {
   D_JOS("String::get_item(int)");
-  if (index >= 0 && index < _len) {
-    byte* item = (byte*)&_buf[index];
-    return *item;
+  if (index >= 0 && index < len()) {
+    //byte* item = (byte*)&_buf[index];
+    //return *item;
+    return _buf[index];
   }
   else
     return Block::get_item(index);
