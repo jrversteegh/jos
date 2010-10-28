@@ -1,3 +1,4 @@
+#define DEBUG
 #include <JOS.h>
 #include <JSer.h>
 #include <wiring_private.h>
@@ -40,6 +41,7 @@ JOS::Text_serial* serial;
 
 void setup() 
 {
+  D_JOS("");
   D_JOS("Constructing Serial");
   serial = new JOS::Text_serial(9600, 0);
   

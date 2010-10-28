@@ -27,16 +27,16 @@
 
 namespace JOS {
 
-// Buffer sizes can be 4,8,16,32,64,128 bytes 
+// Buffer sizes can be 4,8,16,32,64,128,256 bytes 
 #define RX_BUFFER_SIZE 32
 #define TX_BUFFER_SIZE 128
 
 // Check if the buffers size are valid
-#if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 128)
+#if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 256)
 #error "Invalid RX buffersize"
 #endif
 
-#if (TX_BUFFER_SIZE < 4 || TX_BUFFER_SIZE > 128)
+#if (TX_BUFFER_SIZE < 4 || TX_BUFFER_SIZE > 256)
 #error "Invalid TX buffersize"
 #endif
 
@@ -50,7 +50,7 @@ namespace JOS {
 #error "TX buffer size is not a power of 2"
 #endif
 
-template<uint8_t bufsize> class Buffer {
+template<int bufsize> class Buffer {
 protected:
   static const uint8_t mask = bufsize - 1;
   byte buffer[bufsize];
@@ -60,7 +60,7 @@ protected:
     return (_head + 1) & mask;
   }
 public:
-  static const uint8_t size = bufsize;
+  static const int size = bufsize;
   boolean empty() {
     return _head == _tail;
   }
