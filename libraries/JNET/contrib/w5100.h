@@ -131,30 +131,10 @@ class W5100Class {
 public:
   void init();
 
-  /**
-   * @brief	This function is being used for copy the data form Receive buffer of the chip to application buffer.
-   * 
-   * It calculate the actual physical address where one has to read
-   * the data from Receive buffer. Here also take care of the condition while it exceed
-   * the Rx memory uper-bound of socket.
-   */
   void read_data(SOCKET s, volatile uint8_t * src, volatile uint8_t * dst, uint16_t len);
   
-  /**
-   * @brief	 This function is being called by send() and sendto() function also. 
-   * 
-   * This function read the Tx write pointer register and after copy the data in buffer update the Tx write pointer
-   * register. User should read upper byte first and lower byte later to get proper value.
-   */
   void send_data_processing(SOCKET s, uint8_t *data, uint16_t len);
 
-  /**
-   * @brief	This function is being called by recv() also.
-   * 
-   * This function read the Rx read pointer register
-   * and after copy the data from receive buffer update the Rx write pointer register.
-   * User should read upper byte first and lower byte later to get proper value.
-   */
   void recv_data_processing(SOCKET s, uint8_t *data, uint16_t len, uint8_t peek = 0);
 
   inline void setGatewayIp(uint8_t *_addr);

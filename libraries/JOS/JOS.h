@@ -20,7 +20,7 @@
 #define __JOS_H__
 
 //#define DEBUG
-#include "config.h"
+#include "JOS_config.h"
 #include "JDbg.h"
 
 #include <stdlib.h>
@@ -53,23 +53,9 @@ void operator delete(void * ptr) throw();
 
 namespace JOS {
 
-class TaskList;
+struct TaskList;
 
-class Task {
-  boolean _running;
-  boolean _high_priority;
-  unsigned long _continue_at;
-  Task* _next; 
-  TaskList* _task_list;
-
-  boolean run_task();
-protected:
-  static const int run_state_default = 0xFE;
-  byte _run_state;
-  virtual boolean run() = 0;
-  virtual void prev_completed(Task* prev_task) {};
-  virtual boolean suspended();
-public:
+struct Task {
   Task(): _run_state(0), _running(false), _high_priority(false),
       _continue_at(0), _next(0), _task_list(0) {}
   // Don't destroy tasks explicitly, but rather have the "run"
@@ -86,14 +72,23 @@ public:
     task->_next = this;
   }
   friend class TaskList;
+protected:
+  static const int run_state_default = 0xFE;
+  byte _run_state;
+  virtual boolean run() = 0;
+  virtual void prev_completed(Task* prev_task) {};
+  virtual boolean suspended();
+private:
+  boolean _running;
+  boolean _high_priority;
+  unsigned long _continue_at;
+  Task* _next; 
+  TaskList* _task_list;
+
+  boolean run_task();
 };
 
-class TaskList {
-  int _size;
-  int _list_size;
-  Task** _list;
-  void run_task(int item);
-public:
+struct TaskList {
   TaskList(): _size(0), _list_size(4) { 
     // Create a default list with space for 4 tasks
     _list = (Task**)malloc(_list_size * sizeof(Task*)); 
@@ -108,6 +103,11 @@ public:
   int count() const;
   void run();
   friend class Task;
+private:
+  int _size;
+  int _list_size;
+  Task** _list;
+  void run_task(int item);
 };
 
 /* Global task list */

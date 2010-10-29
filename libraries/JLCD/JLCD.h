@@ -22,48 +22,52 @@
 //#define DEBUG
 #include <JOS.h>
 #include <JCls.h>
+#include "JLCD_config.h"
 
 namespace JOS {
   
 //command bytes for LCD
-const byte cmd_clear = 0x01;
-const byte cmd_right = 0x1C;
-const byte cmd_left = 0x18;
-const byte cmd_home = 0x02;
+static const byte cmd_clear = 0x01;
+static const byte cmd_right = 0x1C;
+static const byte cmd_left = 0x18;
+static const byte cmd_home = 0x02;
 
 // Pins:
-const int pin_rs = 8;
-const int pin_en = 9;
+static const int pin_rs = 8;
+static const int pin_en = 9;
 
-const int d_pins = 4;
-const int d_base = 4;
-const int pin_d[] = {d_base, d_base + 1, d_base + 2 , d_base + 3};  
+static const int d_pins = 4;
+static const int d_base = 4;
+static const int pin_d[] = {d_base, d_base + 1, d_base + 2 , d_base + 3};  
 
-class LCDTask: public JOS::Task {
+struct LCDTask: public JOS::Task {
+  LCDTask(): JOS::Task() {
+    D_JOS("LCDTask construction");
+  }
 protected:
   void write_nibble(const byte value);
   void write_byte(const byte value);
   void write_command(const byte value);
   void write_data(const byte value);
-public:
-  LCDTask(): JOS::Task() {
-    D_JOS("LCDTask construction");
-  }
 };
 
-class Init: public LCDTask {
+struct Init: public LCDTask {
 protected:
   virtual boolean run();
 };
 
-// Total screen characters
-const int char_count = 32;
-// Characters per line
-const int line_chars = 16;
-// Memory gap between lines
-const int line_gap = 48;
 
-class Display: public LCDTask {
+struct Display: public LCDTask {
+  Display(): LCDTask(), _addr(0), _char_index(0) {
+    for (int i = 0; i < char_count; ++i) {
+      _data[i] = ' ';
+      _actual[i] = ' ';
+    }
+  }
+  friend class LCD;
+protected:
+  virtual boolean run();
+private:
   static const byte run_state_clear = 100;
   static const byte run_state_home = 102;
   static const byte run_state_put_char = 104;
@@ -86,35 +90,9 @@ class Display: public LCDTask {
   void done() {
     _run_state = run_state_done;
   }
-protected:
-  virtual boolean run();
-public:
-  Display(): LCDTask(), _addr(0), _char_index(0) {
-    for (int i = 0; i < char_count; ++i) {
-      _data[i] = ' ';
-      _actual[i] = ' ';
-    }
-  }
-  friend class LCD;
 };
 
-class LCD: public Block, public Output_text {
-  Display* _display;
-protected:
-  // Block interface
-  byte& get_item(const int index) {
-    if (index >= 0 && index < char_count) 
-      return *((byte*)&_display->_data[index]);
-    else
-      return Block::get_item(index);
-  }
-  byte get_item(const int index) const {
-    if (index >= 0 && index < char_count) 
-      return _display->_data[index];
-    else
-      return 0;
-  }
-public:
+struct LCD: public Block, public Output_text {
   LCD();
   ~LCD();
   // Output stream interface
@@ -135,6 +113,22 @@ public:
     set_pos(line * line_chars);
   }
   void clear();
+protected:
+  // Block interface
+  byte& get_item(const int index) {
+    if (index >= 0 && index < char_count) 
+      return *((byte*)&_display->_data[index]);
+    else
+      return Block::get_item(index);
+  }
+  byte get_item(const int index) const {
+    if (index >= 0 && index < char_count) 
+      return _display->_data[index];
+    else
+      return 0;
+  }
+private:
+  Display* _display;
 };
 
 } // namespace JOS

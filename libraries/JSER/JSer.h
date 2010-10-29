@@ -22,8 +22,9 @@
 #ifndef __JSER_H__
 #define __JSER_H__
 
-#include "JOS.h"
-#include "JCls.h"
+#include <JOS.h>
+#include <JCls.h>
+#include "JSer_config.h"
 
 namespace JOS {
 
@@ -46,16 +47,7 @@ namespace JOS {
 #error "TX buffer size is not a power of 2"
 #endif
 
-template<int bufsize> class Buffer {
-protected:
-  static const uint8_t mask = bufsize - 1;
-  byte buffer[bufsize];
-  volatile uint8_t _head;
-  volatile uint8_t _tail;
-  uint8_t new_head() {
-    return (_head + 1) & mask;
-  }
-public:
+template<int bufsize> struct Buffer {
   static const int size = bufsize;
   boolean empty() {
     return _head == _tail;
@@ -90,6 +82,14 @@ public:
     return (uint8_t)l & mask;
   }
   Buffer(): _head(0), _tail(0) {}
+protected:
+  static const uint8_t mask = bufsize - 1;
+  byte buffer[bufsize];
+  volatile uint8_t _head;
+  volatile uint8_t _tail;
+  uint8_t new_head() {
+    return (_head + 1) & mask;
+  }
 };
 
 struct Rx_buffer: public Buffer<RX_BUFFER_SIZE> {
@@ -104,36 +104,7 @@ struct Tx_buffer: public Buffer<TX_BUFFER_SIZE> {
   }
 };
 
-class SerialBase : public Task {
-  Rx_buffer *_rx_buffer;
-  Tx_buffer *_tx_buffer;
-  volatile uint8_t *_ucsra; // UART status register A
-  volatile uint8_t *_ucsrb; // UART status register B
-  volatile uint8_t *_udr;   // UART data register
-  uint8_t _udre_mask;       // Data register empty mask for status register A
-  uint8_t _udrie_mask;      // DRE interrupt mask for status register B
-  uint8_t _ucsrb_mask;      // Enable bits mask for status register B
-  void set_status(volatile uint8_t* reg, uint8_t mask) {
-    *reg |= mask;
-  }
-  void clear_status(volatile uint8_t* reg, uint8_t mask) {
-    *reg &= ~mask;
-  }
-  void set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, 
-       uint8_t u2x, long baud);
-protected:
-  virtual boolean run();
-  void init(Rx_buffer* rx_buffer, Tx_buffer* tx_buffer, // Buffers
-      volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, // Baudrate registers
-      volatile uint8_t* ucsra, volatile uint8_t* ucsrb, // Status registers (A and B)
-      volatile uint8_t* udr, // Data register
-      uint8_t udre,   // Data register empty bit (Status A)
-      uint8_t rxen, uint8_t txen, // RX/TX enable bits (Status B)
-      uint8_t rxcie,  uint8_t udrie, // RX/DRE interrupt bits (Status B)
-      uint8_t u2x,  // Baud rate sampling bit (Status A) 
-      long baud); 
-  void init(long baud, int port);
-public:
+struct SerialBase : public Task {
   SerialBase(long baud, int port=0): Task() {
     init(baud, port);
   }
@@ -159,11 +130,39 @@ public:
 
   // Serial specific
   void flush();
+protected:
+  virtual boolean run();
+  void init(Rx_buffer* rx_buffer, Tx_buffer* tx_buffer, // Buffers
+      volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, // Baudrate registers
+      volatile uint8_t* ucsra, volatile uint8_t* ucsrb, // Status registers (A and B)
+      volatile uint8_t* udr, // Data register
+      uint8_t udre,   // Data register empty bit (Status A)
+      uint8_t rxen, uint8_t txen, // RX/TX enable bits (Status B)
+      uint8_t rxcie,  uint8_t udrie, // RX/DRE interrupt bits (Status B)
+      uint8_t u2x,  // Baud rate sampling bit (Status A) 
+      long baud); 
+  void init(long baud, int port);
+private:
+  Rx_buffer *_rx_buffer;
+  Tx_buffer *_tx_buffer;
+  volatile uint8_t *_ucsra; // UART status register A
+  volatile uint8_t *_ucsrb; // UART status register B
+  volatile uint8_t *_udr;   // UART data register
+  uint8_t _udre_mask;       // Data register empty mask for status register A
+  uint8_t _udrie_mask;      // DRE interrupt mask for status register B
+  uint8_t _ucsrb_mask;      // Enable bits mask for status register B
+  void set_status(volatile uint8_t* reg, uint8_t mask) {
+    *reg |= mask;
+  }
+  void clear_status(volatile uint8_t* reg, uint8_t mask) {
+    *reg &= ~mask;
+  }
+  void set_baud(volatile uint8_t* ubrrh, volatile uint8_t* ubrrl, 
+       uint8_t u2x, long baud);
 };
 
 template <class ST>
-class Serial_template: public SerialBase, public ST {
-public:
+struct Serial_template: public SerialBase, public ST {
   Serial_template(long baud, int port = 0): SerialBase(baud, port), ST() {
   }
   // IStream interface

@@ -20,15 +20,17 @@
 #ifndef __JNET_H__
 #define __JNET_H__
 
-#define DEBUG
+//#define DEBUG
 #include <JOS.h>
+#include "JNet_config.h"
 
-#define USE_WIZ
-#ifdef USE_WIZ
+#if JNET_USE_WIZ != 0
 #include "contrib/w5100.h"
-#elif USE_ENC
+#elif JNET_USE_ENC != 0
 #include "contrib/enc28j60.h"
 #include "contrib/ip_arp_udp_tcp.h"
+#else
+#error "No network driver selected"
 #endif
 
 namespace JOS {
