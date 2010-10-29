@@ -20,6 +20,7 @@
 #define __JOS_H__
 
 //#define DEBUG
+#include "config.h"
 #include "JDbg.h"
 
 #include <stdlib.h>
@@ -27,6 +28,9 @@
 #undef round
 #include <math.h>
 
+#if PANIC_REBOOT != 0
+#include <avr/wdt.h>
+#endif
 
 __extension__ typedef int __guard __attribute__((mode (__DI__)));
 
@@ -96,6 +100,9 @@ public:
     if (_list == NULL) {
       panic;
     }
+#if PANIC_REBOOT != 0
+    wdt_disable();
+#endif
   }
   void add(Task* task);
   int count() const;

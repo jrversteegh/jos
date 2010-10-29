@@ -27,10 +27,6 @@
 
 namespace JOS {
 
-// Buffer sizes can be 4,8,16,32,64,128,256 bytes 
-#define RX_BUFFER_SIZE 32
-#define TX_BUFFER_SIZE 128
-
 // Check if the buffers size are valid
 #if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 256)
 #error "Invalid RX buffersize"

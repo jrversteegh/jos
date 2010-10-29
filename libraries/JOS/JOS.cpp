@@ -18,6 +18,11 @@
 */
 
 #include "JOS.h"
+#include <avr/interrupt.h>
+
+#if PANIC_REBOOT != 0
+#include <avr/wdt.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -49,21 +54,24 @@ extern "C" {
 void panic()
 {
   // Not yet sure what to do on panic, but we'll have to halt.
-  // We'll flash the TX led to alert
-  while (true) {
+  // We'll flash a led to alert
 #ifdef DEBUG
-    Serial.println("Panic!");
-    Serial.end();
+  Serial.println("Panic!");
+  Serial.end();
 #endif
-    // Disable serial 0.
+  // Disable serial 0. We may wan't to use serial LED.
 #if defined(__AVR_ATmega8__)
-    UCSRB = 0;
+  UCSRB = 0;
 #else
-    UCSR0B = 0;
+  UCSR0B = 0;
 #endif
-    pinMode(1, OUTPUT);
-    digitalWrite(1, !digitalRead(1));
-    delay(1000);
+#if PANIC_REBOOT != 0
+  wdt_enable(WDTO_4S);
+#endif
+  pinMode(PANIC_LED_PIN, OUTPUT);
+  while (true) {
+    digitalWrite(PANIC_LED_PIN, !digitalRead(PANIC_LED_PIN));
+    delay(500);
   };
 }
 
