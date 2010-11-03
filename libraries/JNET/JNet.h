@@ -22,6 +22,7 @@
 
 //#define DEBUG
 #include <JOS.h>
+#include <JCls.h>
 #include "JNet_config.h"
 
 #if JNET_USE_WIZ != 0
@@ -35,33 +36,12 @@
 
 namespace JOS {
   
-const byte cmd_none = 0;
-const byte cmd_command = 1;
-const byte cmd_write = 2;
-const byte cmd_read = 3;
+static const byte cmd_none = 0;
+static const byte cmd_command = 1;
+static const byte cmd_write = 2;
+static const byte cmd_read = 3;
 
-
-class Socket: public JOS::Task {
-private:
-  SOCKET _sock;
-  uint16_t _written;
-  byte _command;
-protected:
-  boolean set_available_socket() {
-    for (_sock = 0; _sock < MAX_SOCK_NUM; ++_sock) {
-      D_JOS("Sock...");
-      if (is_closed()) 
-        return true;
-    }
-    return false;
-  }
-  boolean init(uint8_t protocol, uint16_t port, uint8_t flag);
-  void send_command(uint8_t command);
-  void close();
-  virtual boolean suspended();
-  virtual boolean run();
-  void set_destination(uint8_t* addr, uint16_t port); 
-public:
+struct Socket: public JOS::Task {
   Socket(): JOS::Task(), _sock(255), _written(0), _command(cmd_none) {
     D_JOS("JSocket construction");
     JOS::tasks.add(this);
@@ -90,14 +70,28 @@ public:
     if (is_closed()) return;
     send_command(Sock_RECV);
   }
+protected:
+  boolean set_available_socket() {
+    for (_sock = 0; _sock < MAX_SOCK_NUM; ++_sock) {
+      D_JOS("Sock...");
+      if (is_closed()) 
+        return true;
+    }
+    return false;
+  }
+  boolean init(uint8_t protocol, uint16_t port, uint8_t flag);
+  void send_command(uint8_t command);
+  void close();
+  virtual boolean suspended();
+  virtual boolean run();
+  void set_destination(uint8_t* addr, uint16_t port); 
+private:
+  SOCKET _sock;
+  uint16_t _written;
+  byte _command;
 };
 
-class TCPSocket: public Socket {
-protected:
-  boolean init(uint16_t port) {
-    return Socket::init(SnMR::TCP, port, 0);
-  }
-public:
+struct TCPSocket: public Socket {
   TCPSocket(uint16_t port): Socket() {
     init(port);
   }
@@ -129,6 +123,10 @@ public:
     uint16_t result = read(buf, len, 0);
     Socket::recv();
     return result;
+  }
+protected:
+  boolean init(uint16_t port) {
+    return Socket::init(SnMR::TCP, port, 0);
   }
 };
 
