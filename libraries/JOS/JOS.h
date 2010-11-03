@@ -16,6 +16,16 @@
   License along with this library; if not, write to the Free Software
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
+
+/**
+ * \file
+ * Main header file for JOS.
+ *
+ * \mainpage
+ * \section JOS
+ * This is JOS, a system of low latency arduino libraries.
+ */
+
 #ifndef __JOS_H__
 #define __JOS_H__
 
@@ -38,20 +48,43 @@ __extension__ typedef int __guard __attribute__((mode (__DI__)));
 extern "C" {
 #endif
 
+/** Implemented to keep linker happy with respect to dynamic object allocation */
 int __cxa_guard_acquire(__guard *);
+/** Implemented to keep linker happy with respect to dynamic object allocation */
 void __cxa_guard_release (__guard *);
+/** Implemented to keep linker happy with respect to dynamic object allocation */
 void __cxa_guard_abort (__guard *); 
+/** Implemented to keep linker happy with respect to dynamic object allocation */
 void __cxa_pure_virtual(void);
 
 #ifdef __cplusplus
 }
 #endif
 
-void panic();
+/**
+ * Memory allocator
+ * Allocate memory for and constuct an object
+ * new is not defined or implemented by default in avr, but we need it
+ * so define and implement here. new will panic() instead of throwing an
+ * exception in case an allocation fails.
+ * \param size Size of object to allocate
+ * \return Pointer to new object
+ */
 void * operator new(size_t size) throw();
+/**
+ * Memory disposer
+ * Destroy object pointed to by ptr and dispose of its memory.  
+ * \param ptr Pointer to object to be disposed of.
+ */
 void operator delete(void * ptr) throw(); 
+/**
+ * Fatal error hander.
+ * Call when arduino can no longer continue due to non recoverable error.
+ */
+void panic();
 
 namespace JOS {
+
 
 struct TaskList;
 
@@ -114,5 +147,6 @@ private:
 extern TaskList tasks;
 
 }  // namespace JOS
+
 
 #endif
