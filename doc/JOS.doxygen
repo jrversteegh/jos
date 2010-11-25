@@ -1093,7 +1093,7 @@ LATEX_HIDE_INDICES     = NO
 
 # If LATEX_SOURCE_CODE is set to YES then doxygen will include source code with syntax highlighting in the LaTeX output. Note that which sources are shown also depends on other settings such as SOURCE_BROWSER.
 
-LATEX_SOURCE_CODE      = NO
+LATEX_SOURCE_CODE      = YES
 
 #---------------------------------------------------------------------------
 # configuration options related to the RTF output
@@ -1222,13 +1222,13 @@ GENERATE_AUTOGEN_DEF   = NO
 # feature is still experimental and incomplete at the
 # moment.
 
-GENERATE_PERLMOD       = NO
+GENERATE_PERLMOD       = YES
 
 # If the PERLMOD_LATEX tag is set to YES Doxygen will generate
 # the necessary Makefile rules, Perl scripts and LaTeX code to be able
 # to generate PDF and DVI output from the Perl module output.
 
-PERLMOD_LATEX          = NO
+PERLMOD_LATEX          = YES
 
 # If the PERLMOD_PRETTY tag is set to YES the Perl module output will be
 # nicely formatted so it can be parsed by a human reader.

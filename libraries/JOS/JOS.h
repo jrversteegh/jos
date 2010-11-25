@@ -62,17 +62,17 @@ void __cxa_pure_virtual(void);
 #endif
 
 /**
- * Memory allocator
- * Allocate memory for and constuct an object
- * new is not defined or implemented by default in avr, but we need it
- * so define and implement here. new will panic() instead of throwing an
- * exception in case an allocation fails.
+ * Memory allocator.
+ * Allocate memory for and constuct an object.
+ * \code new \endcode is not defined or implemented by default in avr, 
+ * but we need itso define and implement here. \code new \endcode will 
+ * panic() instead of throwing an exception in case an allocation fails.
  * \param size Size of object to allocate
  * \return Pointer to new object
  */
 void * operator new(size_t size) throw();
 /**
- * Memory disposer
+ * Memory disposer.
  * Destroy object pointed to by ptr and dispose of its memory.  
  * \param ptr Pointer to object to be disposed of.
  */
