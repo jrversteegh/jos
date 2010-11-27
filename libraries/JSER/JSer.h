@@ -29,11 +29,11 @@
 namespace JOS {
 
 // Check if the buffers size are valid
-#if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 256)
+#if (RX_BUFFER_SIZE < 4 || RX_BUFFER_SIZE > 128)
 #error "Invalid RX buffersize"
 #endif
 
-#if (TX_BUFFER_SIZE < 4 || TX_BUFFER_SIZE > 256)
+#if (TX_BUFFER_SIZE < 4 || TX_BUFFER_SIZE > 128)
 #error "Invalid TX buffersize"
 #endif
 
@@ -47,8 +47,8 @@ namespace JOS {
 #error "TX buffer size is not a power of 2"
 #endif
 
-template<int bufsize> struct Buffer {
-  static const int size = bufsize;
+template<uint8_t bufsize> struct Buffer {
+  static const uint8_t size = bufsize;
   boolean empty() {
     return _head == _tail;
   }

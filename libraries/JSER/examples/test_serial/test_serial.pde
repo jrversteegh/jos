@@ -31,8 +31,14 @@ boolean My_task::run() {
   if (serial != 0) {
     // Not all data may be send at once (due to limited buffer size)
     // so keep track of the data sent with "i"
-    i += serial->write(&buf[i], BUFSIZE - i);
-
+    int writeable = serial->writeable();
+    int len = BUFSIZE - i;
+    if (writeable < len)
+      len = writeable;
+    if (serial->write(&buf[i], len)) {
+      i += len;
+    }
+    
     // Echo any incoming bytes
     if (j = serial->read(local_buf, 16)) {
       serial->write(local_buf, j);
