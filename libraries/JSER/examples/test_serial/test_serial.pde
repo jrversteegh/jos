@@ -3,9 +3,14 @@
 #include <JSer.h>
 #include <wiring_private.h>
 
+// Task sends out a buffer of data over the serial port
+// and then echo's incoming data
 struct My_task: JOS::Task {
+  // Just a counter for recording how often the task has run
   unsigned long counter;
+  // Serial port instance
   JOS::Serial* serial;
+  // Task implementation goes in run!
   virtual boolean run();
   My_task(): JOS::Task(), counter(0), serial(0) {}
 };
@@ -19,11 +24,12 @@ boolean My_task::run() {
   // so its value should persist through multiple calls
   static int i = 0;  
 
+  // Local buffer for storing incoming bytes
   int j;
   byte local_buf[16];
 
   if (serial != 0) {
-    // Not all data may be send at once (due limited buffer size)
+    // Not all data may be send at once (due to limited buffer size)
     // so keep track of the data sent with "i"
     i += serial->write(&buf[i], BUFSIZE - i);
 
@@ -40,13 +46,11 @@ boolean My_task::run() {
   return false;
 }
 
-JOS::Serial* serial;
-
 void setup() 
 {
-  D_JOS("");
+  D_JOS(""); // Force a new line
   D_JOS("Constructing Serial");
-  serial = new JOS::Serial(9600, 0);
+  JOS::Serial* serial = new JOS::Serial(9600, 0);
 
   // Fill buffer with all possible byte values to send as test
   for (int i = 0; i < BUFSIZE; ++i) {
@@ -56,6 +60,8 @@ void setup()
   D_JOS("Constructing MyTask");
   My_task* task = new My_task;
   task->serial = serial;
+  
+  // Add tasks to tasklist, so they will be run on JOS::tasks.run()
   D_JOS("Adding MyTask");
   JOS::tasks.add(task);
   D_JOS("Adding Serial");
