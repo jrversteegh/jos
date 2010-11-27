@@ -40,7 +40,8 @@ boolean My_task::run() {
     }
     
     // Echo any incoming bytes
-    if (j = serial->read(local_buf, 16)) {
+    if (serial->available()) {
+      j = serial->read(local_buf, 16);
       serial->write(local_buf, j);
     }
   };
