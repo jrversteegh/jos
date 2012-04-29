@@ -32,13 +32,6 @@ static const byte cmd_right = 0x1C;
 static const byte cmd_left = 0x18;
 static const byte cmd_home = 0x02;
 
-// Pins:
-static const int pin_rs = 8;
-static const int pin_en = 9;
-
-static const int d_pins = 4;
-static const int d_base = 4;
-static const int pin_d[] = {d_base, d_base + 1, d_base + 2 , d_base + 3};  
 
 struct LCDTask: public JOS::Task {
   LCDTask(): JOS::Task() {

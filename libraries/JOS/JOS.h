@@ -34,7 +34,14 @@
 #include "JDbg.h"
 
 #include <stdlib.h>
-#include <wiring.h>
+
+// wiring.h disappeared in Arduino 1.0
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "wiring.h"
+#endif
+
 #undef round
 #include <math.h>
 

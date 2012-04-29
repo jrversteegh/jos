@@ -40,7 +40,12 @@ namespace JOS {
 class Debug: public Print {
   void init_when_required();
 public:
+  // Return type changed in Arduino 1.0
+#if defined(ARDUINO) && ARDUINO >= 100
+  virtual size_t write(uint8_t c);
+#else
   virtual void write(uint8_t c);
+#endif
 };
 
 extern Debug debug;

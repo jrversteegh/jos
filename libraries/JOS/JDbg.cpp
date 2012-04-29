@@ -56,7 +56,11 @@ void Debug::init_when_required()
   }
 }
 
+#if defined(ARDUINO) && ARDUINO >= 100
+size_t Debug::write(uint8_t c)
+#else
 void Debug::write(uint8_t c)
+#endif
 {
   init_when_required();
   while (!(_UCSRA & _BV(_UDRE))) 

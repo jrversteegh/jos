@@ -27,8 +27,8 @@ void LCDTask::write_nibble(const byte value)
   digitalWrite(pin_en, HIGH);
   delayMicroseconds(1);
   // Output nibble on data pins
-  for (int i = 0; i < d_pins; ++i) {
-    digitalWrite(pin_d[i], bitRead(value, i));
+  for (int i = 0; i < data_pin_count; ++i) {
+    digitalWrite(data_pins[i], bitRead(value, i));
   }
   delayMicroseconds(1);
   // Clock out the data with falling edge of enable pin
@@ -162,8 +162,8 @@ LCD::LCD()
   // Initialize pins
   pinMode(pin_rs, OUTPUT);
   pinMode(pin_en, OUTPUT);
-  for (int i = 0; i < d_pins; ++i) {
-    pinMode(pin_d[i], OUTPUT);
+  for (int i = 0; i < data_pin_count; ++i) {
+    pinMode(data_pins[i], OUTPUT);
   }
 
   // Create tasks

@@ -17,12 +17,18 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef __JINTF_H__
-#define __JINTF_H__
+#ifndef __JCLS_H__
+#define __JCLS_H__
 
 #include <stdlib.h>
 #include <string.h>
-#include <wiring.h>
+
+// wiring.h disappeared in Arduino 1.0
+#if defined(ARDUINO) && ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "wiring.h"
+#endif
 
 //#define DEBUG
 #include "JDbg.h"
