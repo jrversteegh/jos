@@ -29,6 +29,9 @@
 
 namespace JOS {
   
+static const int chip_count = 
+      ((display_w + h_px_per_chip - 1) / h_px_per_chip)
+    * ((display_h + v_px_per_chip - 1) / v_px_per_chip);
 
 struct GLCDTask: public JOS::Task {
   GLCDTask(): JOS::Task() {
@@ -47,8 +50,8 @@ protected:
 };
 
 
-struct Display: public GLCDTask {
-  Display(): GLCDTask(), _addr(0), _char_index(0) {
+struct GDisplay: public GLCDTask {
+  GDisplay(): GLCDTask(), _addr(0), _char_index(0) {
     for (int i = 0; i < char_count; ++i) {
       _data[i] = ' ';
       _actual[i] = ' ';
@@ -101,8 +104,25 @@ protected:
     else
       return 0;
   }
+  // Graphics interface
+  void set_fg_color(const uint8_t color);
+  void set_bg_color(const uint8_t color);
+  void dot(const uint8_t x, const uint8_t y, const bool clear=false);
+  void go_to(const uint8_t x, const uint8_t y);
+  void line_to(const uint8_t x, const uint8_t y);
+  void line(const uint8_t x1, const uint8_t y1,
+            const uint8_t x2, const uint8_t y2);
+  void vline(const uint8_t x, const uint8_t y, const uint8_t l);
+  void hline(const uint8_t x, const uint8_t y, const uint8_t l);
+  void rect(const uint8_t x, const uint8_t y,
+            const uint8_t w, const uint8_t h,
+            const bool fill);
+  void clear(const uint8_t x, const uint8_t y,
+             const uint8_t w, const uint8_t h);
+  void bitmap(const uint8_t x, const uint8_t y,
+              const uint8_t* data);
 private:
-  Display* _display;
+  GDisplay* _display;
 };
 
 } // namespace JOS
