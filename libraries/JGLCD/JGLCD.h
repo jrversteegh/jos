@@ -1,6 +1,6 @@
 /*
-  JGLCD.h - 128x64 graphic LCD library (KS0108) for JOS
-  Copyright (c) 2010 Jaap Versteegh.  All right reserved.
+  JGLCD.h - Graphic LCD library (KS0108) for JOS
+  Copyright (c) 2012 Jaap Versteegh.  All right reserved.
 
   This library is free software; you can redistribute it and/or
   modify it under the terms of the GNU Lesser General Public
@@ -38,13 +38,10 @@ struct GLCDTask: public JOS::Task {
     D_JOS("GLCDTask construction");
   }
 protected:
-  void write_nibble(const byte value);
-  void write_byte(const byte value);
-  void write_command(const byte value);
   void write_data(const byte value);
 };
 
-struct Init: public GLCDTask {
+struct GInit: public GLCDTask {
 protected:
   virtual boolean run();
 };
@@ -90,6 +87,25 @@ struct GLCD: public Block, public Output_text {
     set_pos(line * line_chars);
   }
   void clear();
+  // Graphics interface
+  void set_fg_color(const uint8_t color);
+  void set_bg_color(const uint8_t color);
+  void dot(const uint8_t x, const uint8_t y, const boolean clear=false);
+  void go_to(const uint8_t x, const uint8_t y);
+  void line_to(const uint8_t x, const uint8_t y);
+  void line(const uint8_t x1, const uint8_t y1,
+            const uint8_t x2, const uint8_t y2);
+  void vline(const uint8_t x, const uint8_t y, const uint8_t l);
+  void hline(const uint8_t x, const uint8_t y, const uint8_t l);
+  void circle(const uint8_t x, const uint8_t y, const uint8_t r, 
+              const boolean fill=false);
+  void rect(const uint8_t x, const uint8_t y,
+            const uint8_t w, const uint8_t h,
+            const boolean fill=false);
+  void clear(const uint8_t x, const uint8_t y,
+             const uint8_t w, const uint8_t h);
+  void bitmap(const uint8_t x, const uint8_t y,
+              const uint8_t* data);
 protected:
   // Block interface
   byte& get_item(const int index) {
@@ -104,23 +120,6 @@ protected:
     else
       return 0;
   }
-  // Graphics interface
-  void set_fg_color(const uint8_t color);
-  void set_bg_color(const uint8_t color);
-  void dot(const uint8_t x, const uint8_t y, const bool clear=false);
-  void go_to(const uint8_t x, const uint8_t y);
-  void line_to(const uint8_t x, const uint8_t y);
-  void line(const uint8_t x1, const uint8_t y1,
-            const uint8_t x2, const uint8_t y2);
-  void vline(const uint8_t x, const uint8_t y, const uint8_t l);
-  void hline(const uint8_t x, const uint8_t y, const uint8_t l);
-  void rect(const uint8_t x, const uint8_t y,
-            const uint8_t w, const uint8_t h,
-            const bool fill);
-  void clear(const uint8_t x, const uint8_t y,
-             const uint8_t w, const uint8_t h);
-  void bitmap(const uint8_t x, const uint8_t y,
-              const uint8_t* data);
 private:
   GDisplay* _display;
 };
