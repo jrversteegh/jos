@@ -38,13 +38,13 @@ static Tx_buffer tx_buffer3;
 #endif
 
 // Some evil macro stuff to reduce repetition
-#define RX_HANDLER(sign, reg, buf) SIGNAL(sign) \
+#define RX_HANDLER(sign, reg, buf) ISR(sign) \
 { \
   byte data = reg; \
   buf.put(data); \
 }
 
-#define TX_HANDLER(sign, reg, buf) SIGNAL(sign) \
+#define TX_HANDLER(sign, reg, buf) ISR(sign) \
 { \
   byte data; \
   if (buf.get(&data)) { \
@@ -55,20 +55,20 @@ static Tx_buffer tx_buffer3;
 // Declare interrupt service routines
 #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
 
-RX_HANDLER(SIG_USART0_RECV, UDR0, rx_buffer0);
-RX_HANDLER(SIG_USART1_RECV, UDR1, rx_buffer1);
-RX_HANDLER(SIG_USART2_RECV, UDR2, rx_buffer2);
-RX_HANDLER(SIG_USART3_RECV, UDR3, rx_buffer3);
-TX_HANDLER(SIG_USART0_DATA, UDR0, tx_buffer0);
-TX_HANDLER(SIG_USART1_DATA, UDR1, tx_buffer1);
-TX_HANDLER(SIG_USART2_DATA, UDR2, tx_buffer2);
-TX_HANDLER(SIG_USART3_DATA, UDR3, tx_buffer3);
+RX_HANDLER(USART0_RECV_vect, UDR0, rx_buffer0);
+RX_HANDLER(USART1_RECV_vect, UDR1, rx_buffer1);
+RX_HANDLER(USART2_RECV_vect, UDR2, rx_buffer2);
+RX_HANDLER(USART3_RECV_vect, UDR3, rx_buffer3);
+TX_HANDLER(USART0_DATA_vect, UDR0, tx_buffer0);
+TX_HANDLER(USART1_DATA_vect, UDR1, tx_buffer1);
+TX_HANDLER(USART2_DATA_vect, UDR2, tx_buffer2);
+TX_HANDLER(USART3_DATA_vect, UDR3, tx_buffer3);
 
 #else 
 
 #if defined(__AVR_ATmega8__)
-RX_HANDLER(SIG_UART_RECV, UDR, rx_buffer0);
-TX_HANDLER(SIG_UART_DATA, UDR, tx_buffer0);
+RX_HANDLER(UART_RECV_vect, UDR, rx_buffer0);
+TX_HANDLER(UART_DATA_vect, UDR, tx_buffer0);
 #else
 RX_HANDLER(USART_RX_vect, UDR0, rx_buffer0);
 TX_HANDLER(USART_UDRE_vect, UDR0, tx_buffer0);

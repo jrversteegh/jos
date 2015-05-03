@@ -1,4 +1,4 @@
-#JOS
+#ArduinOS
 
 These arduino libraries include a set of task based components that do 
 non-blocking IO (no calls to "delay" or "while" loops) A central tasklist
