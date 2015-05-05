@@ -125,7 +125,7 @@ struct SerialBase : public Task {
   int read_data(byte* data, int size); 
   boolean write_data(const byte* data, int size);
   int writeable_data() const {
-    return _tx_buffer->size - _tx_buffer->len();
+    return _tx_buffer->size - _tx_buffer->len() - 1;
   }
 
   // Serial specific
@@ -172,19 +172,20 @@ struct Serial_template: public SerialBase, public ST {
   virtual boolean peek(byte* b) const {
     return peek_data(b);
   }
+  using ST::read;
   virtual int read(byte* data, int size) {
     return read_data(data, size);
   }
-  using ST::read;
+
 
   // OStream interface
   virtual int writeable() const {
     return writeable_data();
   }
+  using ST::write; 
   virtual boolean write(const byte* data, int size) {
     return write_data(data, size);
   }
-  using ST::write; 
 };
 
 typedef Serial_template<Stream> Serial;

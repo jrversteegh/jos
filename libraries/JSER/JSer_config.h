@@ -7,7 +7,7 @@
 #define __JSER_CONFIG_H__
 
 // Serial buffer sizes can be 4, 8, 16, 32, 64, or 128 bytes 
-#define RX_BUFFER_SIZE 32
+#define RX_BUFFER_SIZE 64
 #define TX_BUFFER_SIZE 128
 
 #endif

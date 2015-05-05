@@ -35,6 +35,26 @@
 
 namespace JOS {
 
+// SFINAE enabling and disabling templates
+template <bool B, class T> struct enabled_if_c { typedef T type; };
+template <class T> struct enabled_if_c<false, T> {};
+template <class Cond, class T> struct enabled_if: public enabled_if_c<Cond::value, T> {}; 
+
+template <bool B, class T> struct disabled_if_c { typedef T type; };
+template <class T> struct disabled_if_c<true, T> {};
+template <class Cond, class T> struct disabled_if: public disabled_if_c<Cond::value, T> {};
+
+// Type trait indicating whether T has an int read(byte*, int) method
+template <class T>
+struct Readable { 
+  typedef char yes[1];
+  typedef char no[2];
+  template <typename E, E> struct Check {};
+  template <class C> static yes& test(C*, Check<int (C::*)(byte*, int), &C::read>* = 0);
+  static no& test(...);
+  static const bool value = sizeof(test((T*)(0))) == sizeof(yes);
+};
+
 struct Input_stream {
   virtual int available() const = 0;
   virtual boolean peek(byte* b) const = 0;
@@ -59,14 +79,8 @@ struct Output_stream {
   virtual int writeable() const = 0;
   virtual boolean write(const byte*, int size) = 0;
   template <typename T> bool write(const T& v) {
-    D_JOS("Generic Output_stream write");
     return write((byte*)&v, sizeof(T));
-  }
-  Output_stream& operator<< (Input_stream& ist) {
-    byte b;
-    while (writeable() > 0 && ist.read(&b))
-      write(b);
-  }
+  } 
   void reset() {
     _opos = 0;
   }
@@ -78,6 +92,20 @@ struct Output_stream {
 protected:
   unsigned _opos;
 };
+
+template<class T>
+inline typename disabled_if<Readable<T>, Output_stream>::type& operator<< (Output_stream& os, const T& v) {
+  if (os.writeable() >= sizeof(v))
+    os.write(v);
+  return os;
+}
+
+inline Output_stream& operator<< (Output_stream& os, Input_stream& is) {
+  byte b;
+  while (is.read(&b, 1))
+    os.write(&b, 1);
+  return os;
+}
 
 struct Stream: public Input_stream, public Output_stream {
   Stream(): Input_stream(), Output_stream() {
@@ -99,6 +127,32 @@ struct Format {
       num_pad(np), str_pad(sp), scientific(sc) {
   }
 };
+
+struct Input_text: public Input_stream {
+  Input_text(): Input_stream(), skipall(false) {
+  }
+  // Parsing
+  boolean skipall;
+
+  // Input_stream extension
+  using Input_stream::read;
+  template<typename T> boolean read(T* value);
+  boolean read(double* value);
+  using Input_stream::peek;
+  boolean peek(char* c) {
+    return peek((byte*)c);
+  }
+  char peek() {
+    char c;
+    if (peek(&c)) 
+      return c;
+    else
+      return 0;
+  }
+private:
+  boolean skip_to_num(boolean* negative);
+};
+
 
 struct Output_text: public Output_stream {
   int write_string(const char* str, boolean complete, char pad, uint8_t width);
@@ -127,31 +181,6 @@ struct Output_text: public Output_stream {
   }
 };
 
-struct Input_text: public Input_stream {
-  Input_text(): Input_stream(), skipall(false) {
-  }
-  // Parsing
-  boolean skipall;
-
-  // Input_stream extension
-  using Input_stream::read;
-  virtual int read(byte*, int size) = 0;
-  template<typename T> boolean read(T* value);
-  boolean read(double* value);
-  using Input_stream::peek;
-  boolean peek(char* c) {
-    return peek((byte*)c);
-  }
-  char peek() {
-    char c;
-    if (peek(&c)) 
-      return c;
-    else
-      return 0;
-  }
-private:
-  boolean skip_to_num(boolean* negative);
-};
 
 struct Text_stream: public Output_text, public Input_text {
   Text_stream(): Output_text(), Input_text() {
@@ -292,6 +321,48 @@ private:
     Memory_block::resize(newsize);
     _buf[_size] = 0;
   }
+};
+
+template <char escape_char>
+struct EscapeFilter: public Input_stream {
+  EscapeFilter(Input_stream* is): _is(is), _escape(0) {}
+  virtual int available() const {
+    // we won't read the whole input just to determine what the
+    // filtered output would be, so this is the minimum
+    // of available characters
+    return _is->available();
+  };
+  virtual boolean peek(byte* b) const {
+    if (_escape != 0) {
+      *b = _escape;
+      return true;
+    } 
+    else {
+      return _is->peek(b);
+    }
+  };
+  virtual int read(byte* buffer, int size) {
+    int i = 0;
+    byte b;
+    while (i < size) {
+      if (_escape != 0) {
+        buffer[i++] = _escape;
+        _escape = 0;
+      }
+      else {
+        if (_is->read(&buffer[i], 1) == 0) {
+          return i;
+        }
+        else if (buffer[i++] == escape_char) {
+          _escape = escape_char;
+        }
+      }
+    }
+    return i;
+  };
+private:
+  Input_stream* _is;
+  byte _escape;
 };
 
 } // namespace JOS

@@ -52,28 +52,32 @@ static Tx_buffer tx_buffer3;
   } \
 } 
 
-// Declare interrupt service routines
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
-
-RX_HANDLER(USART0_RECV_vect, UDR0, rx_buffer0);
-RX_HANDLER(USART1_RECV_vect, UDR1, rx_buffer1);
-RX_HANDLER(USART2_RECV_vect, UDR2, rx_buffer2);
-RX_HANDLER(USART3_RECV_vect, UDR3, rx_buffer3);
-TX_HANDLER(USART0_DATA_vect, UDR0, tx_buffer0);
-TX_HANDLER(USART1_DATA_vect, UDR1, tx_buffer1);
-TX_HANDLER(USART2_DATA_vect, UDR2, tx_buffer2);
-TX_HANDLER(USART3_DATA_vect, UDR3, tx_buffer3);
-
-#else 
-
-#if defined(__AVR_ATmega8__)
-RX_HANDLER(UART_RECV_vect, UDR, rx_buffer0);
-TX_HANDLER(UART_DATA_vect, UDR, tx_buffer0);
+#if !defined(USART0_RX_vect) && defined(USART1_RX_vect)
+RX_HANDLER(USART1_RX_vect, UDR1, rx_buffer0);
+TX_HANDLER(USART1_UDRE_vect, UDR1, tx_buffer0);
 #else
-RX_HANDLER(USART_RX_vect, UDR0, rx_buffer0);
-TX_HANDLER(USART_UDRE_vect, UDR0, tx_buffer0);
-#endif
-
+  #if !defined(USART_RX_vect) && !defined(USART0_RX_vect) && !defined(USART_RXC_vect)
+    #error "Don't know what the Data Received vector is called for the first UART"
+  #else
+    #if defined(USART_RX_vect)
+RX_HANDLER(USART_RX_vect, UDR, rx_buffer0);
+TX_HANDLER(USART_UDRE_vect, UDR, tx_buffer0)
+    #elif defined(USART0_RX_vect) && defined(USART0_UDRE_vect)
+RX_HANDLER(USART0_RX_vect, UDR0, rx_buffer0);
+TX_HANDLER(USART0_UDRE_vect, UDR0, tx_buffer0);
+    #elif defined(USART_RXC_vect)
+RX_HANDLER(USART_RXC_vect, UDR, rx_buffer0);
+TX_HANDLER(USART_UDRE_vect, UDR, tx_buffer0)
+    #endif
+    #if defined(UDR1)
+RX_HANDLER(USART1_RX_vect, UDR1, rx_buffer1);
+RX_HANDLER(USART2_RX_vect, UDR2, rx_buffer2);
+RX_HANDLER(USART3_RX_vect, UDR3, rx_buffer3);
+TX_HANDLER(USART1_UDRE_vect, UDR1, tx_buffer1);
+TX_HANDLER(USART2_UDRE_vect, UDR2, tx_buffer2);
+TX_HANDLER(USART3_UDRE_vect, UDR3, tx_buffer3);
+    #endif
+  #endif
 #endif
 
 void SerialBase::init(Rx_buffer* rx_buffer, Tx_buffer* tx_buffer, 
