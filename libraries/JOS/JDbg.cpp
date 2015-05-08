@@ -17,10 +17,11 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#define DEBUG
 #include "JDbg.h"
 #include <wiring_private.h>
  
+#ifdef DEBUG
+
 namespace JOS {
 
 #define DEBUG_BAUD 9600
@@ -66,8 +67,13 @@ void Debug::write(uint8_t c)
   while (!(_UCSRA & _BV(_UDRE))) 
     ;  
   _UDR = c;
+#if defined(ARDUINO) && ARDUINO >= 100
+  return 1;
+#endif
 }
 
 Debug debug;
 
 }  // namespace JOS
+
+#endif

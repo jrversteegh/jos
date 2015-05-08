@@ -55,11 +55,7 @@ void panic()
 {
   // Not yet sure what to do on panic, but we'll have to halt.
   // We'll flash a led to alert
-#ifdef DEBUG
-  Serial.println("Panic!");
-  Serial.end();
-#endif
-  // Disable serial 0. We may wan't to use serial LED.
+  D_JOS("Panic!");
 #if defined(__AVR_ATmega8__)
   UCSRB = 0;
 #else
@@ -71,14 +67,18 @@ void panic()
   pinMode(PANIC_LED_PIN, OUTPUT);
   while (true) {
     digitalWrite(PANIC_LED_PIN, !digitalRead(PANIC_LED_PIN));
-    delay(500);
+    delay(250);
   };
 }
 
 void * operator new(size_t size) throw()
 {
+  D_JOS("New Alloc:");
   void * result = malloc(size);
+  D_JOS((int)result);
+
   if (result == NULL) {
+    D_JOS("Out of memory");
     panic();
   }
   return result;
@@ -86,7 +86,10 @@ void * operator new(size_t size) throw()
 
 void operator delete(void * ptr) throw()
 {
+  D_JOS("Delete Dealloc:");
+  D_JOS((int)ptr);
   free(ptr);
+  D_JOS("Done");
 } 
  
 namespace JOS {

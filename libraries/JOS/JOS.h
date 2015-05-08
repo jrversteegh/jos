@@ -29,7 +29,6 @@
 #ifndef __JOS_H__
 #define __JOS_H__
 
-//#define DEBUG
 #include "JOS_config.h"
 #include "JDbg.h"
 
@@ -133,7 +132,7 @@ struct TaskList {
     // Create a default list with space for 4 tasks
     _list = (Task**)malloc(_list_size * sizeof(Task*)); 
     if (_list == NULL) {
-      panic;
+      panic();
     }
 #if PANIC_REBOOT != 0
     wdt_disable();

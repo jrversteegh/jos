@@ -19,9 +19,9 @@
 
 //#define DEBUG
 #include "JCls.h"
+#include "JOS.h"
 #include <avr/pgmspace.h>
 #include <limits.h>
-#include <stdlib.h>
 #include <ctype.h>
 
 namespace JOS {
@@ -47,8 +47,8 @@ const char digits[] PROGMEM = "0123456789ABCDEF";
 
 template<typename T> boolean Output_text::write(const Format& fmt, const T& value)
 {
-  D_JOS("Output_text::write(const T&)");
-  const int size = sizeof(T) << 3 + 1;
+  D_JOS("Output_text::write(Format& fmt, const T&)");
+  const int size = (sizeof(T) << 3) + 1;
   char buf[size];
   int i = size;
   buf[--i] = 0;
@@ -79,7 +79,7 @@ template boolean Output_text::write<unsigned long>(const Format&, const unsigned
 
 int Output_text::write_string(const char* str, boolean complete, char pad, uint8_t width)
 {
-  D_JOS("Output_text::write(const char*)");
+  D_JOS("Output_text::write_string(const char*, boolean complete, char pad, uint8_t width)");
   int wr = writeable();
   if (str && (wr >= width)) {
     int i = 0;
@@ -192,6 +192,7 @@ template <typename T> boolean Input_text::read(T* value)
     else if (!isdigit(c))
       return true;
   }
+  return false;
 }
 
 template boolean Input_text::read<short>(short*);
@@ -221,12 +222,13 @@ boolean Input_text::read(double* value)
       break;
   }
   buf[i] = 0;
-  *value = strtod(buf, NULL);
+  *value = strtod(buf, 0);
   if (neg) 
     *value = -*value;
   return true;
 }
 
+// There is no garantee that the new size will be accepted!
 void Memory_block::resize(int new_size)
 {
   if (new_size == _size)
@@ -235,17 +237,31 @@ void Memory_block::resize(int new_size)
     new_size = max_size;
   int new_cap = ((new_size >> block_bits) + 1) << block_bits;
   if (new_cap != _capacity) {
+    D_JOS("Membloc Alloc: current, capacity, new capacity");
+    D_JOS((int)_buf);
+    D_JOS((int)_capacity);
+    D_JOS((int)new_cap);
     byte* new_buf = (byte*)realloc(_buf, new_cap);
-    if (new_buf != NULL) {
+    D_JOS("Membloc Alloc'ed:");
+    D_JOS((int)new_buf);
+
+    if (new_buf != 0) {
       _buf = new_buf;
       _size = new_size;
-      while (_capacity < new_cap)
-        _buf[_capacity++] = 0;
+      if (new_cap < _capacity) 
+        _capacity = new_cap;
+      else while (new_cap > _capacity)
+        _buf[_capacity++] = 0x00;
     }
+#ifdef DEBUG
+    else {
+      D_JOS("Out of memory");
+    }
+#endif
   }
   else {
     while (_size > new_size) {
-      _buf[--_size] = 0;
+      _buf[--_size] = 0x00;
     }
     _size = new_size;
   }
@@ -275,13 +291,13 @@ boolean String::write(const byte* data, int size)
   D_JOS("String::write(const byte*, int)");
   if (writeable() >= size) {
     int length = len();
-    contain(length + size);
+    set_len(length + size);
     if (space() >= size) {
       int i = 0;
       while (i < size) {
+        J_ASSERT(_buf[length] == 0, "Expected zero memory")
         _buf[length++] = data[i++];
       }
-      _buf[length] = 0;
       return true;
     }
   }
@@ -292,7 +308,7 @@ int String::read(byte* data, int size)
 {
   D_JOS("String::read(byte*, int)");
   int ret = 0;
-  while (ret < size && _ipos < len()) {
+  while (ret < size && _ipos < (unsigned)len()) {
     data[ret++] = _buf[_ipos++];
   }
   return ret;

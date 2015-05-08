@@ -28,14 +28,8 @@
     D_JOS(debug_str); \
     panic(); \
   }
-#else
-#define D_JOS(debug_str) 
-#define J_ASSERT(condition, debug_str) 
-#endif
 
 namespace JOS {
-
-#ifdef DEBUG
 
 class Debug: public Print {
   void init_when_required();
@@ -50,8 +44,11 @@ public:
 
 extern Debug debug;
 
-#endif
-
 }  // namespace JOS
+
+#else
+#define D_JOS(debug_str) 
+#define J_ASSERT(condition, debug_str) 
+#endif
 
 #endif

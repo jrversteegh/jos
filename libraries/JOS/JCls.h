@@ -30,7 +30,6 @@
 #include "wiring.h"
 #endif
 
-//#define DEBUG
 #include "JDbg.h"
 
 namespace JOS {
@@ -64,6 +63,7 @@ struct Input_stream {
     if (available() >= sizeof(T)) {
       return read((byte*)v, sizeof(T));
     }
+    return false;
   }
   int skip(int size = 1); 
   void rewind() {
@@ -78,7 +78,8 @@ protected:
 struct Output_stream {
   virtual int writeable() const = 0;
   virtual boolean write(const byte*, int size) = 0;
-  template <typename T> bool write(const T& v) {
+  template <typename T> boolean write(const T& v) {
+    D_JOS("Output_stream generic write");
     return write((byte*)&v, sizeof(T));
   } 
   void reset() {
@@ -155,21 +156,24 @@ private:
 
 
 struct Output_text: public Output_stream {
-  int write_string(const char* str, boolean complete, char pad, uint8_t width);
   // Life cycle
   Output_text(): Output_stream(), format() {
   }
 
   // Formatting
   Format format;
+
+  int write_string(const char* str, boolean complete, char pad, uint8_t width);
   
   // Output_stream extension
   virtual boolean write(const byte*, int size) = 0;
   template<typename T> boolean write(const Format& fmt, const T& value);
   template<typename T> boolean write(const T& value) {
+    D_JOS("Output_text generic write");
     return write(format, value);
   }
   int write(const char* str, boolean complete = false) {
+    D_JOS("Output_text write(const char* str, boolean complete = false)");
     return write_string(str, complete, format.str_pad, format.width);
   }
   boolean write(const Format& fmt, const double& value);
@@ -189,6 +193,7 @@ struct Text_stream: public Output_text, public Input_text {
 
 struct Block {
   virtual int size() const = 0;
+  virtual void resize(int newsize) = 0;
   byte& operator[] (const int index) {
     return get_item(index); 
   }
@@ -212,11 +217,15 @@ struct Matrix {
 };
 
 struct Memory_block: public Block {
-  Memory_block(): Block(), _capacity(0), _size(0), _buf(NULL) {
+  Memory_block(): Block(), _capacity(0), _size(0), _buf(0) {
   }
   ~Memory_block() {
-    if (_buf != NULL)
+    if (_buf != 0) {
+      D_JOS("Memblock Dealloc:");
+      D_JOS((int)_buf);
       free(_buf);
+      D_JOS("Done");
+    }
   }
   virtual int size() const {
     return _size;
@@ -224,7 +233,7 @@ struct Memory_block: public Block {
   byte* data() {
     return _buf;
   }
-  void resize(int new_size);
+  virtual void resize(int new_size);
   void contain(int item) {
     if (item >= _size) {
       resize(item + 1);
@@ -246,7 +255,13 @@ protected:
 
 struct String: public Text_stream, public Memory_block {
   String(): Text_stream(), Memory_block() {
+    D_JOS("String default construction");
     resize(0xF);
+  }
+  String(const char* s): Text_stream(), Memory_block() {
+    D_JOS("String construction from const char*");
+    resize(0xF);
+    write(s);
   }
   
   // Ostream interface
@@ -263,7 +278,7 @@ struct String: public Text_stream, public Memory_block {
     return len() - _ipos;
   }
   virtual boolean peek(byte* b) const {
-    if (_ipos >= len())
+    if ((int)_ipos >= len())
       return false;
     *b = _buf[_ipos];
     return true;
@@ -276,12 +291,13 @@ struct String: public Text_stream, public Memory_block {
   }
   void set_len(int new_len) {
     resize(new_len + 1);
+    if ((int)_ipos > new_len)
+      _ipos = new_len;
   }
   const char* c_str() const {
     return (char*)_buf;
   }
   void clear() {
-    rewind();
     set_len(0);
   }
 
@@ -293,6 +309,7 @@ struct String: public Text_stream, public Memory_block {
     return strcmp((char*)_buf, str) == 0;
   }
   String& operator= (const char* str) {
+    D_JOS("operator=(const char*)");
     clear();
     write(str);
     return *this;
@@ -317,9 +334,9 @@ private:
   int space() {
     return _capacity - _size;
   }
-  void resize(int newsize) {
+  virtual void resize(int newsize) {
     Memory_block::resize(newsize);
-    _buf[_size] = 0;
+    _buf[newsize - 1] = 0;
   }
 };
 
