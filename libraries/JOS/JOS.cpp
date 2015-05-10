@@ -46,7 +46,10 @@ extern "C" {
   {
   }
 
-
+  int atexit(void (*func)()) {
+    //func();
+    return 0;
+  }
 #ifdef __cplusplus
 }
 #endif
@@ -67,7 +70,7 @@ void panic()
   pinMode(PANIC_LED_PIN, OUTPUT);
   while (true) {
     digitalWrite(PANIC_LED_PIN, !digitalRead(PANIC_LED_PIN));
-    delay(250);
+    delay(50);
   };
 }
 

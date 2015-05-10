@@ -334,4 +334,28 @@ byte String::get_item(const int index) const
     return 0;
 }
 
+boolean Slice::write(const byte* data, int size) 
+{
+  D_JOS("Slice::write(const byte*, int)");
+  if (size <= len()) {
+    for (int i = 0; i < size; ++i)
+      get_item(i) = data[i];
+    return true;
+  }
+  return false;
+}
+
+int Slice::read(byte* data, int size)
+{
+  D_JOS("Slice::read(byte*, int)");
+  int i = 0;
+  int l = len();
+  for (; i < size; ++i) {
+    data[i] = get_item(i);
+    if (i >= l) 
+      break;
+  }
+  return i;
+}
+
 } // namespace JOS

@@ -125,13 +125,11 @@ struct Format {
   Format(uint8_t w = 0, uint8_t b = 10, uint8_t p = 2,
         char np = ' ', char sp = ' ', boolean sc = false): 
       width(w), base(b), precision(p), 
-      num_pad(np), str_pad(sp), scientific(sc) {
-  }
+      num_pad(np), str_pad(sp), scientific(sc) {}
 };
 
 struct Input_text: public Input_stream {
-  Input_text(): Input_stream(), skipall(false) {
-  }
+  Input_text(): Input_stream(), skipall(false) {}
   // Parsing
   boolean skipall;
 
@@ -139,6 +137,7 @@ struct Input_text: public Input_stream {
   using Input_stream::read;
   template<typename T> boolean read(T* value);
   boolean read(double* value);
+  boolean read(int* value, int base=10);
   using Input_stream::peek;
   boolean peek(char* c) {
     return peek((byte*)c);
@@ -200,6 +199,15 @@ struct Block {
   byte operator[] (const int index) const {
     return get_item(index); 
   }
+  boolean operator== (const Block& blck) {
+    if (size() != blck.size())
+      return false;
+    for (int i; i < size(); ++i) {
+      if (get_item(i) != blck.get_item(i))
+        return false;
+    }
+    return true;
+  }
   Block(): _undef(0) {}
 protected:
   byte _undef; // Returned when index is out of range
@@ -253,61 +261,63 @@ protected:
   virtual byte get_item(const int item) const;
 };
 
-struct String: public Text_stream, public Memory_block {
-  String(): Text_stream(), Memory_block() {
-    D_JOS("String default construction");
-    resize(0xF);
+struct Zero_terminated {
+  Zero_terminated(Block* block): _blck(block) {}
+  int len() const {
+    return _blck->size() - 1;
   }
-  String(const char* s): Text_stream(), Memory_block() {
+  void set_len(int new_len) {
+    _blck->resize(new_len + 1);
+  }
+  void clear() {
+    set_len(0);
+  }
+private:
+  Block* _blck;
+};
+
+struct String: public Text_stream, public Memory_block,  public Zero_terminated {
+  String(): Text_stream(), Memory_block(), Zero_terminated(this) {
+    D_JOS("String default construction");
+    clear();
+  }
+  String(const char* s): Text_stream(), Memory_block(), Zero_terminated(this) {
     D_JOS("String construction from const char*");
-    resize(0xF);
+    clear();
     write(s);
   }
   
   // Ostream interface
   virtual boolean write(const byte* data, int size);
-  using Text_stream::write;
-  virtual int writeable() const {
-    return max_size - _size;
-  }
+  using Text_stream::write; 
+  virtual int writeable() const { 
+    return max_size - _size; 
+  } 
 
-  // Input_stream interface
-  virtual int read(byte* data, int size);
-  using Text_stream::read;
-  virtual int available() const {
-    return len() - _ipos;
-  }
-  virtual boolean peek(byte* b) const {
-    if ((int)_ipos >= len())
-      return false;
+  // Input_stream interface 
+  virtual int read(byte* data, int size); 
+  using Text_stream::read; 
+  virtual int available() const { 
+    return len() - _ipos; 
+  } 
+  virtual boolean peek(byte* b) const { 
+    if ((int)_ipos >= len()) 
+      return false; 
     *b = _buf[_ipos];
     return true;
   }
   using Text_stream::peek;
 
   // String functions
-  int len() const {
-    return _size - 1;
-  }
-  void set_len(int new_len) {
-    resize(new_len + 1);
-    if ((int)_ipos > new_len)
-      _ipos = new_len;
-  }
   const char* c_str() const {
     return (char*)_buf;
   }
-  void clear() {
-    set_len(0);
-  }
 
   // Operators
-  boolean operator== (const String& str) {
-    return strcmp((char*)_buf, str.c_str()) == 0;
-  }
   boolean operator== (const char* str) {
     return strcmp((char*)_buf, str) == 0;
   }
+  using Block::operator==;
   String& operator= (const char* str) {
     D_JOS("operator=(const char*)");
     clear();
@@ -335,8 +345,83 @@ private:
     return _capacity - _size;
   }
   virtual void resize(int newsize) {
+    D_JOS("String resize");
+    D_JOS(newsize);
     Memory_block::resize(newsize);
     _buf[newsize - 1] = 0;
+  }
+};
+
+struct Slice: public Text_stream, public Block, public Zero_terminated {
+  Slice(String& s, int begin, int end):  
+      Text_stream(), Block(), Zero_terminated(this), _str(s), _begin(begin), _end(end) {
+  }
+  
+  // Block interface
+  virtual int size() const {
+    return end() - begin() + 1;
+  }
+  virtual void resize(int newsize) {
+    _end = begin() + newsize - 1;
+  }
+
+  // Ostream interface
+  virtual boolean write(const byte* data, int size); 
+  using Text_stream::write;
+  virtual int writeable() const {
+    return len() - _ipos;
+  }
+
+  // Input_stream interface
+  virtual int read(byte* data, int size); 
+  using Text_stream::read;
+  virtual int available() const {
+    return len() - _ipos;
+  }
+  virtual boolean peek(byte* b) const {
+    if ((int)_ipos >= len())
+      return false;
+    *b = get_item(_ipos);
+    return true;
+  }
+  using Text_stream::peek;
+protected:
+  // Block interface
+  virtual byte& get_item(const int index) {
+    int i = begin() + index;
+    int e = end();
+    if (i < e)
+      return _str.data()[i];
+    else
+      return Block::get_item(index);
+  }
+  virtual byte get_item(const int index) const {
+    int i = begin() + index;
+    int e = end();
+    if (i < e)
+      return _str[i];
+    else
+      return 0;
+  }
+private:
+  String& _str;
+  int _begin;
+  int _end;
+  int begin() const {
+    if (_begin < 0) {
+      return max(0, _str.len() + _begin);
+    }
+    else {
+      return max(_str.len(), _begin);
+    }
+  }
+  int end() const {
+    if (_end < 1) {
+      return max(begin(), _str.len() + _end);
+    } 
+    else {
+      return min(_str.len(), _end);
+    }
   }
 };
 
