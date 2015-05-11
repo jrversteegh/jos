@@ -17,17 +17,20 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 
-#ifndef __JDBG_H__
-#define __JDBG_H__
 
 #ifdef DEBUG
 #include "Print.h"
+#undef D_JOS
+#undef J_ASSERT
 #define D_JOS(debug_str) JOS::debug.println(debug_str) 
 #define J_ASSERT(condition, debug_str) \
   if (!(condition)) { \
     D_JOS(debug_str); \
     panic(); \
   }
+
+#ifndef __JDBG_H__
+#define __JDBG_H__
 
 namespace JOS {
 
@@ -46,9 +49,12 @@ extern Debug debug;
 
 }  // namespace JOS
 
+#endif
+
 #else
+#undef D_JOS
+#undef J_ASSERT
 #define D_JOS(debug_str) 
 #define J_ASSERT(condition, debug_str) 
 #endif
 
-#endif

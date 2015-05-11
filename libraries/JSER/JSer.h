@@ -177,7 +177,6 @@ struct Serial_template: public SerialBase, public ST {
     return read_data(data, size);
   }
 
-
   // OStream interface
   virtual int writeable() const {
     return writeable_data();

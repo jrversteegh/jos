@@ -94,14 +94,15 @@ protected:
   unsigned _opos;
 };
 
-template<class T>
-inline typename disabled_if<Readable<T>, Output_stream>::type& operator<< (Output_stream& os, const T& v) {
+template<class OS, class T>
+inline typename disabled_if<Readable<T>, OS>::type& operator<< (OS& os, const T& v) {
   if (os.writeable() >= sizeof(v))
     os.write(v);
   return os;
 }
 
-inline Output_stream& operator<< (Output_stream& os, Input_stream& is) {
+template<class OS>
+inline OS& operator<< (OS& os, Input_stream& is) {
   byte b;
   while (is.read(&b, 1))
     os.write(&b, 1);
@@ -202,8 +203,21 @@ struct Block {
   boolean operator== (const Block& blck) {
     if (size() != blck.size())
       return false;
-    for (int i; i < size(); ++i) {
+    for (int i = 0; i < size(); ++i) {
       if (get_item(i) != blck.get_item(i))
+        return false;
+    }
+    return true;
+  }
+  boolean operator== (const char* str) {
+    if (str == 0)
+      return false;
+    char c = 1;
+    for (int i = 0; i < size(); ++i) {
+      if (c == 0)  // str was terminated, but block still has data -> not equal
+        return false;
+      c = str[i];
+      if (get_item(i) != c)
         return false;
     }
     return true;
@@ -269,9 +283,6 @@ struct Zero_terminated {
   void set_len(int new_len) {
     _blck->resize(new_len + 1);
   }
-  void clear() {
-    set_len(0);
-  }
 private:
   Block* _blck;
 };
@@ -279,11 +290,13 @@ private:
 struct String: public Text_stream, public Memory_block,  public Zero_terminated {
   String(): Text_stream(), Memory_block(), Zero_terminated(this) {
     D_JOS("String default construction");
-    clear();
+    // Initialize to an empty string
+    set_len(0);
   }
   String(const char* s): Text_stream(), Memory_block(), Zero_terminated(this) {
     D_JOS("String construction from const char*");
-    clear();
+    // Initialize to an empty string
+    set_len(0);
     write(s);
   }
   
@@ -312,12 +325,12 @@ struct String: public Text_stream, public Memory_block,  public Zero_terminated 
   const char* c_str() const {
     return (char*)_buf;
   }
+  void clear() {
+    set_len(0);
+    rewind();
+  }
 
   // Operators
-  boolean operator== (const char* str) {
-    return strcmp((char*)_buf, str) == 0;
-  }
-  using Block::operator==;
   String& operator= (const char* str) {
     D_JOS("operator=(const char*)");
     clear();
