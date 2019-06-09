@@ -59,15 +59,15 @@ TX_HANDLER(USART1_UDRE_vect, UDR1, tx_buffer0);
   #if !defined(USART_RX_vect) && !defined(USART0_RX_vect) && !defined(USART_RXC_vect)
     #error "Don't know what the Data Received vector is called for the first UART"
   #else
-    #if defined(USART_RX_vect)
-RX_HANDLER(USART_RX_vect, UDR, rx_buffer0);
-TX_HANDLER(USART_UDRE_vect, UDR, tx_buffer0)
-    #elif defined(USART0_RX_vect) && defined(USART0_UDRE_vect)
+    #if defined(USART0_RX_vect) && defined(USART0_UDRE_vect)
 RX_HANDLER(USART0_RX_vect, UDR0, rx_buffer0);
 TX_HANDLER(USART0_UDRE_vect, UDR0, tx_buffer0);
     #elif defined(USART_RXC_vect)
 RX_HANDLER(USART_RXC_vect, UDR, rx_buffer0);
 TX_HANDLER(USART_UDRE_vect, UDR, tx_buffer0)
+    #elif defined(USART_RX_vect)
+RX_HANDLER(USART_RX_vect, UDR0, rx_buffer0);
+TX_HANDLER(USART_UDRE_vect, UDR0, tx_buffer0)
     #endif
     #if defined(UDR1)
 RX_HANDLER(USART1_RX_vect, UDR1, rx_buffer1);
